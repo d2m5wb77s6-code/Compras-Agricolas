@@ -1,0 +1,1186 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Compras Castilla Agrícola</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+body{margin:0;}
+:root{padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
+/* Layout: sticky header with KPI strip + year filter, chart grid below, full-width filterable order table at the bottom */
+:root{
+  --bg:#f9f9f7; --surface:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --accent:#1fa23e; --accent-2:#f2780c;
+  --chart-green:#1fa23e; --chart-orange:#f2780c; --chart-blue:#1565d8;
+  --line-1:#1fa23e; --line-2:#f2780c; --line-3:#1565d8;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --s1:#1fa23e; --s2:#f2780c; --s3:#1565d8; --s4:#8a9a3a; --s5:#c2492f; --s6:#5c4a1e; --s7:#7a2fb0; --s8:#e34948;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d0d0d; --surface:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --accent:#3dcb5c; --accent-2:#ff9433;
+    --chart-green:#3dcb5c; --chart-orange:#ff9433; --chart-blue:#4c8dff;
+    --line-1:#3dcb5c; --line-2:#ff9433; --line-3:#4c8dff;
+    --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767;
+    --s1:#3dcb5c; --s2:#ff9433; --s3:#4c8dff; --s4:#a8bd6a; --s5:#d9704f; --s6:#8a703a; --s7:#a877e0; --s8:#e66767;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d0d0d; --surface:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --accent:#3dcb5c; --accent-2:#ff9433;
+  --chart-green:#3dcb5c; --chart-orange:#ff9433; --chart-blue:#4c8dff;
+  --line-1:#3dcb5c; --line-2:#ff9433; --line-3:#4c8dff;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767;
+  --s1:#3dcb5c; --s2:#ff9433; --s3:#4c8dff; --s4:#a8bd6a; --s5:#d9704f; --s6:#8a703a; --s7:#a877e0; --s8:#e66767;
+  color-scheme: dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--text-primary); font-family:"Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif; padding-inline:16px; padding-block:0;}
+.wrap{max-width:1180px; margin:0 auto;}
+.num{font-variant-numeric: tabular-nums;}
+code,.mono{font-family:"JetBrains Mono", ui-monospace, monospace;}
+
+/* ---------- header ---------- */
+header.top{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--bg); padding-block:14px 10px; border-bottom:1px solid var(--border);}
+.title-row{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+h1{font-size:1.4rem; font-weight:700; margin:0; letter-spacing:-0.01em;}
+.subtitle{color:var(--text-secondary); font-size:0.85rem; margin-top:2px;}
+.meta{color:var(--muted); font-size:0.78rem; text-align:right;}
+.year-filter{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;}
+.chip{border:1px solid var(--border); background:var(--surface); color:var(--text-secondary); padding:5px 12px; border-radius:999px; font-size:0.8rem; font-weight:500; cursor:pointer; transition:background .15s, color .15s, border-color .15s;}
+.chip:hover{border-color:var(--accent);}
+.chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+/* ---------- KPIs ---------- */
+.kpi-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px; margin-block:16px;}
+.kpi{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; min-width:0;}
+.kpi .label{font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px;}
+.kpi .value{font-size:1.3rem; font-weight:700; line-height:1.15;}
+.kpi .sub{font-size:0.74rem; color:var(--text-secondary); margin-top:3px;}
+
+/* ---------- sections / cards ---------- */
+section{margin-block:22px;}
+.section-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:10px; flex-wrap:wrap;}
+.section-head h2{font-size:0.95rem; font-weight:600; margin:0;}
+.section-head .hint{font-size:0.74rem; color:var(--muted);}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; min-width:0;}
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+@media (max-width:760px){ .grid-2{grid-template-columns:1fr;} }
+.grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:900px){ .grid-3{grid-template-columns:1fr 1fr;} }
+@media (max-width:540px){ .grid-3{grid-template-columns:1fr;} }
+
+/* ---------- bar chart ---------- */
+.barchart{display:flex; flex-direction:column; gap:7px;}
+.icam-detail{background:color-mix(in srgb, var(--grid) 45%, var(--surface)); border-radius:8px; padding:8px 10px; margin-top:-3px;}
+.icam-detail .legend-item .lpct{color:var(--accent-2); font-weight:600;}
+.icam-row:hover .lbl-main{color:var(--accent);}
+.barrow{display:grid; grid-template-columns:min(38%,170px) 1fr auto; align-items:center; gap:8px; min-width:0;}
+.barrow .lbl{min-width:0; overflow:hidden;}
+.barrow .lbl-main{font-size:0.78rem; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.barrow .lbl-sub{font-size:0.68rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px;}
+.barrow .track{background:var(--grid); border-radius:4px; height:16px; position:relative; min-width:0;}
+.barrow .fill{position:absolute; left:0; top:0; height:100%; border-radius:4px; background:var(--accent); min-width:3px; transition:width .5s ease;}
+.barrow .val{font-size:0.76rem; color:var(--text-primary); font-weight:500; white-space:nowrap;}
+.barrow:hover .lbl-main{color:var(--text-primary);}
+.barrow:hover .fill{filter:brightness(1.1);}
+
+/* ---------- monthly chart ---------- */
+.monthly-svg{width:100%; height:200px; display:block; overflow:visible;}
+.monthly-wrap{position:relative;}
+.m-tooltip{position:absolute; pointer-events:none; background:var(--text-primary); color:var(--surface); font-size:0.72rem; padding:5px 8px; border-radius:6px; white-space:nowrap; transform:translate(-50%,-115%); opacity:0; transition:opacity .1s; z-index:5;}
+.m-tooltip.show{opacity:1;}
+
+/* ---------- split bar (estado / tipo) ---------- */
+.split-bar{display:flex; width:100%; height:26px; border-radius:6px; overflow:hidden; border:1px solid var(--border);}
+.split-seg{height:100%;}
+.legend{display:flex; flex-direction:column; gap:7px; margin-top:12px;}
+.legend-item{display:flex; align-items:center; gap:8px; font-size:0.8rem;}
+.swatch{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+.legend-item .lname{flex:1; min-width:0; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.legend-item .lval{font-weight:600; white-space:nowrap;}
+.legend-item .lpct{color:var(--muted); font-size:0.74rem; white-space:nowrap;}
+
+/* ---------- table ---------- */
+.filters{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
+.filters input, .filters select{background:var(--surface); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; padding:7px 10px; font-size:0.82rem; font-family:inherit;}
+.filters input{flex:1; min-width:160px;}
+
+/* ---------- global filter bar ---------- */
+.global-filters{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center;}
+.global-filters .gf-label{font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-right:2px;}
+.global-filters select{background:var(--surface); border:1px solid var(--border); color:var(--text-primary); border-radius:999px; padding:6px 12px; font-size:0.8rem; font-family:inherit; font-weight:500;}
+.global-filters select:hover{border-color:var(--accent);}
+.multiselect{position:relative;}
+.ms-toggle{background:var(--surface); border:1px solid var(--border); color:var(--text-primary); border-radius:999px; padding:6px 12px; font-size:0.8rem; font-family:inherit; font-weight:500; cursor:pointer;}
+.ms-toggle:hover{border-color:var(--accent);}
+.ms-panel{position:absolute; top:calc(100% + 6px); left:0; z-index:30; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:8px; min-width:160px; max-height:240px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.12);}
+.ms-option{display:flex; align-items:center; gap:7px; padding:5px 6px; border-radius:6px; font-size:0.8rem; color:var(--text-primary); cursor:pointer;}
+.ms-option:hover{background:var(--grid);}
+.ms-option input{accent-color:var(--accent); cursor:pointer;}
+.ms-clear{font-size:0.72rem; color:var(--accent); background:none; border:none; cursor:pointer; padding:5px 6px; text-decoration:underline;}
+.table-scroll{overflow-x:auto; border:1px solid var(--border); border-radius:10px;}
+table{width:100%; border-collapse:collapse; font-size:0.8rem; min-width:780px;}
+thead th{text-align:left; padding:9px 10px; background:var(--grid); color:var(--text-secondary); font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; position:sticky; top:0;}
+tbody td{padding:8px 10px; border-top:1px solid var(--border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px;}
+tbody tr:hover{background:var(--grid);}
+.badge{display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:600;}
+.badge::before{content:""; width:6px; height:6px; border-radius:50%;}
+.badge.cumplido{color:var(--good); background:color-mix(in srgb, var(--good) 14%, transparent);}
+.badge.cumplido::before{background:var(--good);}
+.badge.anulado{color:var(--critical); background:color-mix(in srgb, var(--critical) 14%, transparent);}
+.badge.anulado::before{background:var(--critical);}
+.badge.parcial, .badge.proceso{color:var(--warning); background:color-mix(in srgb, var(--warning) 18%, transparent);}
+.badge.parcial::before, .badge.proceso::before{background:var(--warning);}
+.badge.aprobado{color:var(--accent-2); background:color-mix(in srgb, var(--accent-2) 16%, transparent);}
+.badge.aprobado::before{background:var(--accent-2);}
+.pager{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; font-size:0.8rem; color:var(--text-secondary); flex-wrap:wrap;}
+.pager button{background:var(--surface); border:1px solid var(--border); color:var(--text-primary); border-radius:7px; padding:6px 12px; font-size:0.8rem; cursor:pointer;}
+.pager button:disabled{opacity:0.4; cursor:default;}
+.loading-row{text-align:center; padding:28px; color:var(--muted); font-size:0.85rem;}
+
+footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-top:1px solid var(--border); margin-top:30px;}
+
+/* ---------- line chart legend ---------- */
+.legend-inline{display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; justify-content:center;}
+.legend-toggle{display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--text-secondary); cursor:pointer; user-select:none; background:none; border:none; font-family:inherit; padding:2px;}
+.legend-toggle .swatch{width:14px; height:3px; border-radius:2px; flex-shrink:0;}
+.legend-toggle.off{opacity:0.35;}
+
+/* ---------- matrix tables ---------- */
+.matrix-table{width:100%; border-collapse:collapse; font-size:0.8rem; min-width:620px;}
+.matrix-table th{text-align:right; padding:9px 10px; background:var(--grid); color:var(--text-secondary); font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap;}
+.matrix-table th:first-child, .matrix-table td:first-child{text-align:left;}
+.matrix-table td{padding:8px 10px; border-top:1px solid var(--border); text-align:right; white-space:nowrap;}
+.matrix-table tr.total-row td{font-weight:700; border-top:2px solid var(--axis);}
+.var-up{color:var(--critical); font-weight:600;}
+.var-down{color:var(--good); font-weight:600;}
+.var-flat{color:var(--muted);}
+.heat-cell{text-align:center !important; border-radius:4px; font-variant-numeric: tabular-nums;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="top">
+  <div class="title-row">
+    <div>
+      <h1>Compras &amp; Abastecimiento <span style="color:var(--accent)">· Castilla Agrícola</span></h1>
+      <div class="subtitle">Seguimiento de órdenes de compra · fuente: SIESA</div>
+    </div>
+    <div class="meta">Corte de datos: 28 sep 2026<br>36.911 líneas · 13.048 órdenes</div>
+  </div>
+  <div class="global-filters" id="globalFilters">
+    <span class="gf-label">Filtrar:</span>
+    <select id="gfEmpresa">
+      <option value="">Todas las empresas</option>
+      <option value="Castilla Agrícola" selected>Castilla Agrícola</option>
+    </select>
+    <div class="multiselect" id="gfAnio"><button class="ms-toggle" type="button">Todos los años</button><div class="ms-panel" hidden></div></div>
+    <div class="multiselect" id="gfMes"><button class="ms-toggle" type="button">Todos los meses</button><div class="ms-panel" hidden></div></div>
+  </div>
+</header>
+
+<div class="kpi-grid" id="kpiGrid"></div>
+
+<section>
+  <div class="section-head">
+    <h2>Tendencia mensual de gasto total (Bienes + Servicios)</h2>
+    <span class="hint">suma de todas las categorías · una barra por año · clic en el año para mostrar/ocultar</span>
+  </div>
+  <div class="card">
+    <div class="monthly-wrap">
+      <svg class="monthly-svg" id="monthlyChart" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+      <div class="m-tooltip" id="monthlyTooltip"></div>
+    </div>
+    <div class="legend-inline" id="monthlyLegend"></div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Tendencia mensual de gasto — Bienes</h2>
+    <span class="hint">solo categoría GRBI - Bienes · una barra por año</span>
+  </div>
+  <div class="card">
+    <div class="monthly-wrap">
+      <svg class="monthly-svg" id="monthlyChartBienes" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+      <div class="m-tooltip" id="monthlyTooltipBienes"></div>
+    </div>
+    <div class="legend-inline" id="monthlyLegendBienes"></div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Tendencia mensual de gasto — Servicios</h2>
+    <span class="hint">solo categoría GRSE - Servicios · una barra por año</span>
+  </div>
+  <div class="card">
+    <div class="monthly-wrap">
+      <svg class="monthly-svg" id="monthlyChartServicios" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+      <div class="m-tooltip" id="monthlyTooltipServicios"></div>
+    </div>
+    <div class="legend-inline" id="monthlyLegendServicios"></div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><h2>Bienes vs. servicios</h2></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="split-bar" id="tipoSplitBar"></div>
+      <div class="legend" id="tipoLegend"></div>
+    </div>
+    <div class="card">
+      <div class="split-bar" id="estadoSplitBar"></div>
+      <div class="legend" id="estadoLegend"></div>
+    </div>
+  </div>
+  <div class="section-head" style="margin-top:4px">
+    <span class="hint" style="font-size:0.72rem">izquierda: tipo de gasto · derecha: estado de las órdenes</span>
+  </div>
+</section>
+
+<section>
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-head"><h2>Top 10 insumos de campo (ICAM)</h2></div>
+      <div class="barchart" id="icamChart"></div>
+    </div>
+    <div class="card">
+      <div class="section-head"><h2>Top 10 tipos de material</h2></div>
+      <div class="barchart" id="tiposMaterialChart"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Top 10 proveedores por categoría</h2>
+    <span class="hint">separado por tipo de gasto · gasto por año y variación año a año</span>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-head"><h2>Bienes</h2></div>
+      <div class="table-scroll"><table class="matrix-table" id="proveedorBienesChart"></table></div>
+    </div>
+    <div class="card">
+      <div class="section-head"><h2>Servicios</h2></div>
+      <div class="table-scroll"><table class="matrix-table" id="proveedorServiciosChart"></table></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Gasto por área</h2>
+    <span class="hint">Bienes/Servicios = acumulado del año más reciente · años y variación año a año</span>
+  </div>
+  <div class="card">
+    <div class="table-scroll">
+      <table class="matrix-table" id="areaMatrixTable"><tbody><tr><td class="loading-row">Calculando matriz de áreas…</td></tr></tbody></table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Precios de mercado — Insumos</h2>
+    <span class="hint" id="insumosFuente">Urea, Urea recubierta, KCL y Mezcla especial · Año 2026 · fuente: "Compras Mezcla"</span>
+  </div>
+  <div class="global-filters" style="margin-top:0; margin-bottom:14px;">
+    <span class="gf-label">Categoría:</span>
+    <button class="chip active" id="btnFertilizacion" type="button">Fertilización</button>
+    <button class="chip" id="btnControlQuimico" type="button">Control Químico</button>
+  </div>
+  <div class="kpi-grid" id="insumosKpiGrid"></div>
+  <div class="card" id="insumosTrendView" style="margin-top:14px;">
+    <div class="section-head">
+      <h2 style="font-size:0.85rem">Evolución mensual de precio por kilo</h2>
+      <span class="hint">promedio cuando hay más de una compra en el mes</span>
+    </div>
+    <div class="monthly-wrap">
+      <svg class="monthly-svg" id="insumosChart" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+      <div class="m-tooltip" id="insumosTooltip"></div>
+    </div>
+    <div class="legend-inline" id="insumosLegend"></div>
+    <div class="hint" id="insumosGapsNote" style="margin-top:10px;"></div>
+  </div>
+  <div id="insumosSnapshotView" style="display:none; margin-top:14px;">
+    <div class="section-head">
+      <h2 style="font-size:0.85rem">Top insumos por último costo registrado</h2>
+      <span class="hint">foto del catálogo, no serie mensual</span>
+    </div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="section-head"><h2 style="font-size:0.8rem">Herbicidas</h2></div>
+        <div class="barchart" id="herbicidaChart"></div>
+      </div>
+      <div class="card">
+        <div class="section-head"><h2 style="font-size:0.8rem">Fungicidas</h2></div>
+        <div class="barchart" id="fungicidaChart"></div>
+      </div>
+      <div class="card">
+        <div class="section-head"><h2 style="font-size:0.8rem">Insecticidas</h2></div>
+        <div class="barchart" id="insecticidaChart"></div>
+      </div>
+    </div>
+    <div class="hint" id="insumosSnapshotNote" style="margin-top:10px;"></div>
+  </div>
+</section>
+
+<footer>
+  Dashboard de <strong>Castilla Agrícola</strong>, generado a partir de la descarga de SIESA ("Dashborad 28 de Septiembre 2026.xlsx"). Todas las cifras de gasto usan la columna <strong>"Valor Bruto Compra Real"</strong> del histórico. Las órdenes en estado <strong>Anulado</strong> se excluyen de todos los gráficos, KPIs y matrices (no representan gasto real). Abreviaturas: <strong>Mil</strong> = miles de pesos, <strong>M</strong> = millones de pesos, <strong>MM</strong> = miles de millones de pesos. Riopaila Agrícola se incorporará en una siguiente actualización. Para actualizar con una nueva descarga, comparte el archivo y se regenera este mismo enlace.
+</footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var fmtCOP = new Intl.NumberFormat('es-CO', {style:'currency', currency:'COP', maximumFractionDigits:0});
+  function compact(n){
+    var sign = n<0 ? '-' : '';
+    n = Math.abs(n);
+    if(n >= 1e9) return sign+'$'+(n/1e9).toFixed(2).replace('.',',')+'MM';
+    if(n >= 1e6) return sign+'$'+(n/1e6).toFixed(1).replace('.',',')+'M';
+    if(n >= 1e3) return sign+'$'+(n/1e3).toFixed(0)+'Mil';
+    return sign+'$'+n.toFixed(0);
+  }
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  var DETAIL = null, currentAgg = null;
+  var GFILTER = { anio:[], mes:[], empresa:"Castilla Agrícola" };
+  var hiddenYearsTotal = {}, hiddenYearsBienes = {}, hiddenYearsServicios = {};
+  var MES_ABBR = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  var MES_FULL = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  // ---------------- KPIs ----------------
+  function renderKPIs(agg){
+    var pct = agg.totalNeto ? (agg.pendingValue / agg.totalNeto * 100) : 0;
+    var cumplido = agg.byEstado.find(function(e){ return e.nombre === "Cumplido"; }) || {valor:0,count:0};
+    var cumplidoPct = agg.totalFilas ? (cumplido.count / agg.totalFilas * 100) : 0;
+    var topProv = agg.byProveedorTop10[0] || {nombre:"—", valor:0};
+    var promedioOrden = agg.totalOrdenes ? (agg.totalNeto / agg.totalOrdenes) : 0;
+    var tiles = [
+      {label:"Gasto total (compra real)", value: compact(agg.totalNeto), sub: fmtCOP.format(agg.totalNeto)},
+      {label:"Órdenes de compra", value: agg.totalOrdenes.toLocaleString('es-CO'), sub: agg.totalFilas.toLocaleString('es-CO')+' líneas'},
+      {label:"Valor pendiente", value: compact(agg.pendingValue), sub: agg.pendingCount.toLocaleString('es-CO')+' líneas ('+pct.toFixed(1)+'%)'},
+      {label:"Tasa de cumplimiento", value: cumplidoPct.toFixed(1)+'%', sub: cumplido.count.toLocaleString('es-CO')+' líneas cumplidas'},
+      {label:"Mayor proveedor", value: compact(topProv.valor), sub: topProv.nombre},
+      {label:"Valor promedio por orden", value: compact(promedioOrden), sub: 'excluye órdenes anuladas'},
+    ];
+    document.getElementById('kpiGrid').innerHTML = tiles.map(function(t){
+      return '<div class="kpi"><div class="label">'+esc(t.label)+'</div><div class="value num">'+t.value+'</div><div class="sub">'+esc(t.sub)+'</div></div>';
+    }).join('');
+  }
+
+  // ---------------- Clean line chart (one line per year, no area fill) ----------------
+  function renderLineChart(ids, byYear, hiddenState, rerenderFn){
+    var years = Object.keys(byYear).sort();
+    var svg = document.getElementById(ids.svg);
+    var W=1000,H=220, padL=4, padR=44, padB=22, padT=16;
+    var allVals = [];
+    years.forEach(function(y){ byYear[y].forEach(function(v){ if(v!=null) allVals.push(v); }); });
+    var max = Math.max.apply(null, allVals) || 1;
+    var plotW = W-padL-padR, plotH = H-padT-padB;
+    var baseY = padT + plotH;
+    function xFor(mi){ return padL + plotW * (mi/11); }
+    function yFor(v){ return padT + plotH * (1 - v/max); }
+
+    var parts = [];
+    parts.push('<line x1="'+padL+'" y1="'+baseY+'" x2="'+(W-padR)+'" y2="'+baseY+'" stroke="var(--axis)" stroke-width="1"/>');
+    for(var mi=0; mi<12; mi++){
+      parts.push('<text x="'+xFor(mi).toFixed(1)+'" y="'+(H-6)+'" font-size="9" fill="var(--muted)" text-anchor="middle" font-family="JetBrains Mono, monospace">'+MES_ABBR[mi]+'</text>');
+    }
+
+    var endLabels = [];
+    years.forEach(function(y, yi){
+      var color = catColors[yi % catColors.length];
+      var pts = [], pathD = "";
+      byYear[y].forEach(function(v, mi){
+        if(v==null) return;
+        var x = xFor(mi), yy = yFor(v);
+        pathD += (pathD?"L":"M") + x.toFixed(1) + " " + yy.toFixed(1) + " ";
+        pts.push({x:x,y:yy,mi:mi,v:v});
+      });
+      var grpHidden = hiddenState[y] ? ' style="display:none"' : '';
+      parts.push('<g class="yline" data-year="'+y+'"'+grpHidden+'>');
+      parts.push('<path d="'+pathD+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>');
+      pts.forEach(function(p){
+        parts.push('<circle class="mpt" data-year="'+y+'" data-mi="'+p.mi+'" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3.4" fill="'+color+'" stroke="var(--surface)" stroke-width="1.4" style="cursor:pointer"/>');
+      });
+      if(pts.length && !hiddenState[y]){
+        var last = pts[pts.length-1];
+        endLabels.push({x:last.x, y:last.y, color:color, text:compact(last.v)});
+      }
+      parts.push('</g>');
+    });
+
+    endLabels.sort(function(a,b){ return a.y-b.y; });
+    for(var li=1; li<endLabels.length; li++){
+      if(endLabels[li].y < endLabels[li-1].y + 15){ endLabels[li].y = endLabels[li-1].y + 15; }
+    }
+    endLabels.forEach(function(lb){
+      var lx = lb.x+9, ly = lb.y+3.5, w = 8 + lb.text.length*6.3;
+      parts.push('<rect x="'+(lx-3).toFixed(1)+'" y="'+(ly-10.5).toFixed(1)+'" width="'+w.toFixed(1)+'" height="14" rx="4" fill="var(--surface)" opacity="0.85"/>');
+      parts.push('<text x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" font-size="10.5" font-weight="700" fill="'+lb.color+'" font-family="JetBrains Mono, monospace">'+lb.text+'</text>');
+    });
+
+    svg.innerHTML = parts.join('');
+
+    var tooltip = document.getElementById(ids.tooltip);
+    svg.querySelectorAll('.mpt').forEach(function(pt){
+      pt.addEventListener('mouseenter', function(){ pt.setAttribute('r','5'); });
+      pt.addEventListener('mouseleave', function(){ pt.setAttribute('r','3.4'); tooltip.classList.remove('show'); });
+      pt.addEventListener('mousemove', function(ev){
+        var y = pt.getAttribute('data-year'), mi = +pt.getAttribute('data-mi');
+        var v = byYear[y][mi];
+        var rect = svg.getBoundingClientRect();
+        tooltip.style.left = (ev.clientX-rect.left)+'px';
+        tooltip.style.top = (ev.clientY-rect.top)+'px';
+        tooltip.innerHTML = '<strong>'+MES_ABBR[mi]+' '+y+'</strong><br>'+fmtCOP.format(v);
+        tooltip.classList.add('show');
+      });
+    });
+
+    var legend = document.getElementById(ids.legend);
+    legend.innerHTML = years.map(function(y,yi){
+      var color = catColors[yi % catColors.length];
+      var off = hiddenState[y] ? ' off' : '';
+      return '<button class="legend-toggle'+off+'" data-year="'+y+'"><span class="swatch" style="background:'+color+'"></span>'+y+'</button>';
+    }).join('');
+    legend.querySelectorAll('.legend-toggle').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var y = btn.getAttribute('data-year');
+        hiddenState[y] = !hiddenState[y];
+        rerenderFn();
+      });
+    });
+  }
+
+  function redrawTotalChart(){
+    renderLineChart({svg:'monthlyChart', tooltip:'monthlyTooltip', legend:'monthlyLegend'}, currentAgg.monthlyTotal, hiddenYearsTotal, redrawTotalChart);
+  }
+  function redrawBienesChart(){
+    renderLineChart({svg:'monthlyChartBienes', tooltip:'monthlyTooltipBienes', legend:'monthlyLegendBienes'}, currentAgg.monthlyBienes, hiddenYearsBienes, redrawBienesChart);
+  }
+  function redrawServiciosChart(){
+    renderLineChart({svg:'monthlyChartServicios', tooltip:'monthlyTooltipServicios', legend:'monthlyLegendServicios'}, currentAgg.monthlyServicios, hiddenYearsServicios, redrawServiciosChart);
+  }
+
+  // ---------------- Horizontal bar chart (generic) ----------------
+  function renderBarList(containerId, items, total){
+    var max = Math.max.apply(null, items.map(function(i){return i.valor;})) || 1;
+    var html = items.map(function(it){
+      var w = Math.max((it.valor/max*100), 1.5);
+      var titleText = it.nombre + (it.sub ? ' · '+it.sub : '');
+      var subHtml = it.sub ? '<div class="lbl-sub">'+esc(it.sub)+'</div>' : '';
+      return '<div class="barrow" title="'+esc(titleText)+'">'+
+        '<div class="lbl"><div class="lbl-main">'+esc(it.nombre)+'</div>'+subHtml+'</div>'+
+        '<div class="track"><div class="fill" style="width:'+w.toFixed(1)+'%"></div></div>'+
+        '<div class="val num">'+compact(it.valor)+'</div>'+
+        '</div>';
+    }).join('');
+    document.getElementById(containerId).innerHTML = html;
+  }
+
+  // ---------------- Expandable bar chart: click an item to reveal its provider/contratista breakdown ----------------
+  function renderExpandableBarChart(containerId, items, etiqueta){
+    var max = Math.max.apply(null, items.map(function(i){return i.valor;})) || 1;
+    var html = items.map(function(it, i){
+      var w = Math.max((it.valor/max*100), 1.5);
+      var detailRows = it.proveedores.map(function(p){
+        var pct = it.valor ? (p.valor/it.valor*100) : 0;
+        return '<div class="legend-item"><span class="lname">'+esc(p.nombre)+'</span><span class="lpct">'+pct.toFixed(1)+'%</span><span class="lval num">'+compact(p.valor)+'</span></div>';
+      }).join('') || '<div class="legend-item"><span class="lname">Sin '+esc(etiqueta)+' registrado</span></div>';
+      return '<div class="barrow icam-row" data-idx="'+i+'" style="cursor:pointer" title="Clic para ver '+esc(etiqueta)+'s">'+
+        '<div class="lbl"><div class="lbl-main">'+esc(it.nombre)+'</div></div>'+
+        '<div class="track"><div class="fill" style="width:'+w.toFixed(1)+'%"></div></div>'+
+        '<div class="val num">'+compact(it.valor)+'</div>'+
+        '</div>'+
+        '<div class="icam-detail" id="'+containerId+'-detail-'+i+'" hidden><div class="legend" style="margin-top:0">'+detailRows+'</div></div>';
+    }).join('');
+    var el = document.getElementById(containerId);
+    el.innerHTML = html;
+    el.querySelectorAll('.icam-row').forEach(function(row){
+      row.addEventListener('click', function(){
+        var panel = document.getElementById(containerId+'-detail-'+row.getAttribute('data-idx'));
+        panel.hidden = !panel.hidden;
+      });
+    });
+  }
+
+  // ---------------- Split bar + legend ----------------
+  function colorForStatus(nombre){
+    var m = {"Cumplido":"var(--good)","Anulado":"var(--critical)","Parcial":"var(--s3)","En proceso de aprobación":"var(--warning)","Aprobado":"var(--accent-2)"};
+    return m[nombre] || 'var(--muted)';
+  }
+  var catColors = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)','var(--s7)','var(--s8)'];
+
+  function renderSplit(barId, legendId, items, colorFn){
+    var total = items.reduce(function(a,b){return a+b.valor;}, 0) || 1;
+    var bar = items.map(function(it,i){
+      var pct = (it.valor/total*100);
+      var c = colorFn ? colorFn(it.nombre, i) : catColors[i % catColors.length];
+      return '<div class="split-seg" style="width:'+pct.toFixed(2)+'%; background:'+c+'" title="'+esc(it.nombre)+'"></div>';
+    }).join('');
+    document.getElementById(barId).innerHTML = bar;
+    var legend = items.map(function(it,i){
+      var pct = (it.valor/total*100);
+      var c = colorFn ? colorFn(it.nombre, i) : catColors[i % catColors.length];
+      return '<div class="legend-item"><span class="swatch" style="background:'+c+'"></span><span class="lname">'+esc(it.nombre)+'</span><span class="lpct">'+pct.toFixed(1)+'%</span><span class="lval num">'+compact(it.valor)+'</span></div>';
+    }).join('');
+    document.getElementById(legendId).innerHTML = legend;
+  }
+
+  function getGloballyFilteredDetail(){
+    return DETAIL.filter(function(r){
+      if(GFILTER.anio.length && GFILTER.anio.indexOf(r.f.slice(0,4)) === -1) return false;
+      if(GFILTER.mes.length && GFILTER.mes.indexOf(r.f.slice(5,7)) === -1) return false;
+      if(GFILTER.empresa && r.em !== GFILTER.empresa) return false;
+      return true;
+    });
+  }
+
+  // Charts/KPIs/matrices exclude Anulado orders (they represent no real spend); the detail table keeps them for audit.
+  function getChartsFilteredDetail(){
+    return getGloballyFilteredDetail().filter(function(r){ return r.es !== 'Anulado'; });
+  }
+
+  // ---------------- Core aggregation: everything derives from one filtered row set ----------------
+  function computeAll(rows){
+    var totalNeto=0, pendingValue=0, pendingCount=0;
+    var ordenSet = new Set();
+    var monthlyTotal={}, monthlyBienes={}, monthlyServicios={};
+    var tipoMap={}, estadoMap={}, provMap={}, provMapBienes={}, provMapServicios={}, icamMap={}, tmMap={}, areaMap={};
+    var years = new Set();
+
+    rows.forEach(function(r){
+      totalNeto += r.vn;
+      ordenSet.add(r.no);
+      if(r.cp>0){ pendingValue+=r.vn; pendingCount++; }
+      if(r.f){
+        var y = r.f.slice(0,4), mi = parseInt(r.f.slice(5,7),10)-1;
+        years.add(y);
+        if(!monthlyTotal[y]) monthlyTotal[y]=new Array(12).fill(null);
+        monthlyTotal[y][mi] = (monthlyTotal[y][mi]||0) + r.vn;
+        if(r.gm.indexOf('BIENES')>=0){
+          if(!monthlyBienes[y]) monthlyBienes[y]=new Array(12).fill(null);
+          monthlyBienes[y][mi] = (monthlyBienes[y][mi]||0) + r.vn;
+        } else if(r.gm.indexOf('SERVICIOS')>=0){
+          if(!monthlyServicios[y]) monthlyServicios[y]=new Array(12).fill(null);
+          monthlyServicios[y][mi] = (monthlyServicios[y][mi]||0) + r.vn;
+        }
+      }
+      if(r.gm && r.gm.indexOf('PLANTA DE MEZCLAS')===-1){
+        if(!tipoMap[r.gm]) tipoMap[r.gm] = {nombre:r.gm, valor:0, count:0};
+        tipoMap[r.gm].valor += r.vn; tipoMap[r.gm].count++;
+      }
+      if(r.es){
+        if(!estadoMap[r.es]) estadoMap[r.es] = {nombre:r.es, valor:0, count:0};
+        estadoMap[r.es].valor += r.vn; estadoMap[r.es].count++;
+      }
+      if(r.pr){
+        if(!provMap[r.pr]) provMap[r.pr] = {nombre:r.pr, valor:0, count:0};
+        provMap[r.pr].valor += r.vn; provMap[r.pr].count++;
+        var y3 = r.f ? r.f.slice(0,4) : null;
+        if(r.gm.indexOf('BIENES')>=0){
+          if(!provMapBienes[r.pr]) provMapBienes[r.pr] = {nombre:r.pr, valor:0, count:0, byYear:{}};
+          provMapBienes[r.pr].valor += r.vn; provMapBienes[r.pr].count++;
+          if(y3) provMapBienes[r.pr].byYear[y3] = (provMapBienes[r.pr].byYear[y3]||0) + r.vn;
+        } else if(r.gm.indexOf('SERVICIOS')>=0){
+          if(!provMapServicios[r.pr]) provMapServicios[r.pr] = {nombre:r.pr, valor:0, count:0, byYear:{}};
+          provMapServicios[r.pr].valor += r.vn; provMapServicios[r.pr].count++;
+          if(y3) provMapServicios[r.pr].byYear[y3] = (provMapServicios[r.pr].byYear[y3]||0) + r.vn;
+        }
+      }
+      if(r.tm === 'ICAM - INSUMOS CAMPO'){
+        if(!icamMap[r.it]) icamMap[r.it] = {nombre:r.it, valor:0, count:0, provMap:{}};
+        icamMap[r.it].valor += r.vn; icamMap[r.it].count++;
+        if(r.pr){
+          icamMap[r.it].provMap[r.pr] = (icamMap[r.it].provMap[r.pr]||0) + r.vn;
+        }
+      }
+      if(r.tm){
+        if(!tmMap[r.tm]) tmMap[r.tm] = {nombre:r.tm, valor:0, count:0, provMap:{}};
+        tmMap[r.tm].valor += r.vn; tmMap[r.tm].count++;
+        if(r.pr){
+          tmMap[r.tm].provMap[r.pr] = (tmMap[r.tm].provMap[r.pr]||0) + r.vn;
+        }
+      }
+      if(r.ar){
+        if(!areaMap[r.ar]) areaMap[r.ar] = {nombre:r.ar, bienes:0, servicios:0, total:0, byYear:{}, byYearCat:{}};
+        var a = areaMap[r.ar];
+        a.total += r.vn;
+        if(r.f){
+          var y2 = r.f.slice(0,4);
+          a.byYear[y2] = (a.byYear[y2]||0) + r.vn;
+          if(!a.byYearCat[y2]) a.byYearCat[y2] = {bienes:0, servicios:0};
+          if(r.gm.indexOf('BIENES')>=0) a.byYearCat[y2].bienes += r.vn;
+          else if(r.gm.indexOf('SERVICIOS')>=0) a.byYearCat[y2].servicios += r.vn;
+        }
+      }
+    });
+
+    var yearsArr = Array.from(years).sort();
+    var latestYear = yearsArr[yearsArr.length-1];
+    Object.keys(areaMap).forEach(function(k){
+      var a = areaMap[k];
+      var cat = a.byYearCat[latestYear] || {bienes:0, servicios:0};
+      a.bienes = cat.bienes; a.servicios = cat.servicios;
+    });
+
+    function conDetalle(map){
+      return Object.keys(map).map(function(k){
+        var item = map[k];
+        var proveedores = Object.keys(item.provMap)
+          .map(function(p){ return {nombre:p, valor:item.provMap[p]}; })
+          .sort(function(a,b){ return b.valor-a.valor; });
+        return {nombre:item.nombre, valor:item.valor, count:item.count, proveedores:proveedores};
+      }).sort(function(a,b){return b.valor-a.valor;}).slice(0,10);
+    }
+
+    return {
+      totalNeto: totalNeto, totalOrdenes: ordenSet.size, totalFilas: rows.length,
+      pendingValue: pendingValue, pendingCount: pendingCount, years: yearsArr,
+      monthlyTotal: monthlyTotal, monthlyBienes: monthlyBienes, monthlyServicios: monthlyServicios,
+      byTipo: Object.keys(tipoMap).map(function(k){return tipoMap[k];}).sort(function(a,b){return b.valor-a.valor;}),
+      byEstado: Object.keys(estadoMap).map(function(k){return estadoMap[k];}).sort(function(a,b){return b.valor-a.valor;}),
+      byProveedorTop10: Object.keys(provMap).map(function(k){return provMap[k];}).sort(function(a,b){return b.valor-a.valor;}).slice(0,10),
+      byProveedorBienesTop10: Object.keys(provMapBienes).map(function(k){return provMapBienes[k];}).sort(function(a,b){return b.valor-a.valor;}).slice(0,10),
+      byProveedorServiciosTop10: Object.keys(provMapServicios).map(function(k){return provMapServicios[k];}).sort(function(a,b){return b.valor-a.valor;}).slice(0,10),
+      byTiposMaterialTop10: conDetalle(tmMap),
+      icamTop10: conDetalle(icamMap),
+      areaRows: Object.keys(areaMap).map(function(k){return areaMap[k];}).sort(function(a,b){return b.total-a.total;})
+    };
+  }
+
+  function renderAreaMatrixFromAgg(agg){
+    var years = agg.years;
+    var latestYear = years[years.length-1] || '';
+    function varCell(prev, curr){
+      if(!prev) return '<td class="var-flat">—</td>';
+      var pct = (curr-prev)/prev*100;
+      var cls = pct > 0.5 ? 'var-up' : (pct < -0.5 ? 'var-down' : 'var-flat');
+      var arrow = pct > 0.5 ? '▲' : (pct < -0.5 ? '▼' : '—');
+      return '<td class="'+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</td>';
+    }
+    var thead = '<thead><tr><th>Área</th><th>Bienes ('+latestYear+')</th><th>Servicios ('+latestYear+')</th>'+
+      years.map(function(y){ return '<th>'+y+'</th>'; }).join('')+
+      years.slice(1).map(function(y,i){ return '<th>Var. '+years[i]+'→'+y+'</th>'; }).join('')+
+      '<th>Total</th></tr></thead>';
+    var tbody = '<tbody>' + agg.areaRows.map(function(a){
+      var cells = '<td>'+esc(a.nombre)+'</td>'+
+        '<td class="num">'+compact(a.bienes)+'</td>'+
+        '<td class="num">'+compact(a.servicios)+'</td>'+
+        years.map(function(y){ return '<td class="num">'+(a.byYear[y]?compact(a.byYear[y]):'—')+'</td>'; }).join('')+
+        years.slice(1).map(function(y,i){ return varCell(a.byYear[years[i]], a.byYear[y]); }).join('')+
+        '<td class="num">'+compact(a.total)+'</td>';
+      return '<tr>'+cells+'</tr>';
+    }).join('') + '</tbody>';
+    document.getElementById('areaMatrixTable').innerHTML = agg.areaRows.length ? (thead+tbody) : '<tbody><tr><td class="loading-row">Sin datos para estos filtros.</td></tr></tbody>';
+  }
+
+  function renderProveedorMatrix(containerId, rows, years, nameLabel){
+    function varCell(prev, curr){
+      if(!prev) return '<td class="var-flat">—</td>';
+      var pct = (curr-prev)/prev*100;
+      var cls = pct > 0.5 ? 'var-up' : (pct < -0.5 ? 'var-down' : 'var-flat');
+      var arrow = pct > 0.5 ? '▲' : (pct < -0.5 ? '▼' : '—');
+      return '<td class="'+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</td>';
+    }
+    var thead = '<thead><tr><th>'+esc(nameLabel)+'</th>'+
+      years.map(function(y){ return '<th>'+y+'</th>'; }).join('')+
+      years.slice(1).map(function(y,i){ return '<th>Var. '+years[i]+'→'+y+'</th>'; }).join('')+
+      '<th>Total</th></tr></thead>';
+    var tbody = '<tbody>' + rows.map(function(r){
+      var byYear = r.byYear || {};
+      var cells = '<td>'+esc(r.nombre)+'</td>'+
+        years.map(function(y){ return '<td class="num">'+(byYear[y]?compact(byYear[y]):'—')+'</td>'; }).join('')+
+        years.slice(1).map(function(y,i){ return varCell(byYear[years[i]], byYear[y]); }).join('')+
+        '<td class="num">'+compact(r.valor)+'</td>';
+      return '<tr>'+cells+'</tr>';
+    }).join('') + '</tbody>';
+    document.getElementById(containerId).innerHTML = rows.length ? (thead+tbody) : '<tbody><tr><td class="loading-row">Sin datos para estos filtros.</td></tr></tbody>';
+  }
+
+  // ---------------- Master render: one pass driven by GFILTER ----------------
+  function renderAll(){
+    var rows = getChartsFilteredDetail();
+    currentAgg = computeAll(rows);
+    renderKPIs(currentAgg);
+    redrawTotalChart();
+    redrawBienesChart();
+    redrawServiciosChart();
+    renderSplit('tipoSplitBar','tipoLegend', currentAgg.byTipo, function(n){ return n.indexOf('BIENES')>=0 ? 'var(--s1)' : 'var(--s2)'; });
+    renderSplit('estadoSplitBar','estadoLegend', currentAgg.byEstado, colorForStatus);
+    renderProveedorMatrix('proveedorBienesChart', currentAgg.byProveedorBienesTop10, currentAgg.years, 'Proveedor');
+    renderProveedorMatrix('proveedorServiciosChart', currentAgg.byProveedorServiciosTop10, currentAgg.years, 'Proveedor');
+    if(currentAgg.icamTop10.length){ renderExpandableBarChart('icamChart', currentAgg.icamTop10, 'proveedor'); }
+    else { document.getElementById('icamChart').innerHTML = '<div style="font-size:0.8rem; color:var(--muted)">Sin datos para ICAM - Insumos campo.</div>'; }
+    if(currentAgg.byTiposMaterialTop10.length){ renderExpandableBarChart('tiposMaterialChart', currentAgg.byTiposMaterialTop10, 'contratista'); }
+    else { document.getElementById('tiposMaterialChart').innerHTML = '<div style="font-size:0.8rem; color:var(--muted)">Sin datos para estos filtros.</div>'; }
+    renderAreaMatrixFromAgg(currentAgg);
+  }
+
+  // Generic multi-select "pill" dropdown: a toggle button + a checkbox panel, backed by a GFILTER array.
+  function setupMultiSelect(containerId, options, filterKey, allLabel, itemLabelFn){
+    var root = document.getElementById(containerId);
+    var toggle = root.querySelector('.ms-toggle');
+    var panel = root.querySelector('.ms-panel');
+
+    function selectedArr(){ return GFILTER[filterKey]; }
+    function refreshToggleLabel(){
+      var sel = selectedArr();
+      toggle.textContent = sel.length === 0 ? allLabel : (sel.length === 1 ? itemLabelFn(sel[0]) : sel.length+' seleccionados');
+    }
+    function buildPanel(){
+      var html = options.map(function(opt){
+        var checked = selectedArr().indexOf(opt.value) !== -1 ? ' checked' : '';
+        return '<label class="ms-option"><input type="checkbox" value="'+esc(opt.value)+'"'+checked+'>'+esc(opt.label)+'</label>';
+      }).join('');
+      html += '<button type="button" class="ms-clear">Limpiar selección</button>';
+      panel.innerHTML = html;
+      panel.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+        cb.addEventListener('change', function(){
+          var v = cb.value;
+          var arr = selectedArr();
+          var idx = arr.indexOf(v);
+          if(cb.checked && idx===-1) arr.push(v);
+          else if(!cb.checked && idx!==-1) arr.splice(idx,1);
+          refreshToggleLabel();
+          renderAll();
+        });
+      });
+      panel.querySelector('.ms-clear').addEventListener('click', function(){
+        GFILTER[filterKey] = [];
+        buildPanel();
+        refreshToggleLabel();
+        renderAll();
+      });
+    }
+    buildPanel();
+    refreshToggleLabel();
+    toggle.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      var willOpen = panel.hidden;
+      document.querySelectorAll('.ms-panel').forEach(function(p){ p.hidden = true; });
+      panel.hidden = !willOpen;
+    });
+    panel.addEventListener('click', function(ev){ ev.stopPropagation(); });
+  }
+
+  function populateFilterOptions(fullAgg){
+    setupMultiSelect('gfAnio', fullAgg.years.map(function(y){ return {value:y, label:y}; }), 'anio', 'Todos los años', function(v){return v;});
+    setupMultiSelect('gfMes', MES_FULL.map(function(name,i){ return {value:String(i+1).padStart(2,'0'), label:name}; }), 'mes', 'Todos los meses', function(v){
+      return MES_FULL[parseInt(v,10)-1];
+    });
+    document.addEventListener('click', function(){ document.querySelectorAll('.ms-panel').forEach(function(p){ p.hidden = true; }); });
+  }
+
+  function wireGlobalFilters(){
+    document.getElementById('gfEmpresa').addEventListener('change', function(e){ GFILTER.empresa = e.target.value; renderAll(); });
+  }
+
+  // ---------------- Precios de mercado — Insumos (Fertilización / Control Químico) ----------------
+  var MES_NOMBRE = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  // Raw purchase lines from "Formulacion Mezcla Especial UREA + KCL Angela.xlsx" → hoja "Compras Mezcla" (Año 2026).
+  var INSUMOS_FERT_ROWS = [
+    {mes:0, mezcla:2382,    urea:2470, ureaRecub:2470, kcl:1970, proveedor:"Nitrofer",   cantidad:210000},
+    {mes:1, mezcla:2260,    urea:2620, ureaRecub:2620, kcl:2260, proveedor:"AGSE",       cantidad:210000},
+    {mes:1, mezcla:2382,    urea:2450, ureaRecub:2450, kcl:2110, proveedor:"Nitrofer",   cantidad:210000},
+    {mes:2, mezcla:2473.16, urea:2790, ureaRecub:2790, kcl:2030, proveedor:"Ciamsa",     cantidad:70000},
+    {mes:2, mezcla:3496,    urea:4045, ureaRecub:4045, kcl:2295, proveedor:"Ciamsa",     cantidad:240000},
+    {mes:3, mezcla:3400,    urea:3600, ureaRecub:3600, kcl:2600, proveedor:"AGSE",       cantidad:70000},
+    {mes:3, mezcla:3160,    urea:3400, ureaRecub:3400, kcl:3050, proveedor:"Evoagro",    cantidad:70000},
+    {mes:3, mezcla:3160,    urea:3950, ureaRecub:3950, kcl:2700, proveedor:"AGSE",       cantidad:70000},
+    {mes:5, mezcla:2496,    urea:3300, ureaRecub:3300, kcl:2400, proveedor:"Precisagro", cantidad:140000},
+    {mes:8, mezcla:2640,    urea:2800, ureaRecub:2800, kcl:1930, proveedor:"Nitrofer",   cantidad:140000},
+    {mes:8, mezcla:2640,    urea:2800, ureaRecub:null, kcl:1930, proveedor:"Nitrofer",   cantidad:140000}
+  ];
+
+  var INSUMOS_DATASETS = {
+    fertilizacion: {
+      rows: INSUMOS_FERT_ROWS,
+      fuente: 'Urea, Urea recubierta, KCL y Mezcla especial · Año 2026 · fuente: "Compras Mezcla"',
+      series: [
+        {key:"mezcla", nombre:"Mezcla especial", color:"var(--s1)"},
+        {key:"urea", nombre:"Urea", color:"var(--s2)"},
+        {key:"ureaRecub", nombre:"Urea recubierta", color:"var(--s3)"},
+        {key:"kcl", nombre:"KCL", color:"var(--s4)"}
+      ],
+      kpiPrincipal: "urea"
+    },
+    // Snapshot (no es serie mensual): "Último costo uni." del catálogo de materiales, hoja oculta "Catalogo"
+    // de "1. Proyección de Núcleos - Materiales.xlsx". Se excluyeron 11 ítems con valores ~10^16 (error de captura
+    // en el archivo fuente, evidente al comparar con la mediana real de ~$93.000).
+    controlQuimico: {
+      type: "snapshot",
+      fuente: 'Herbicidas, fungicidas e insecticidas · último costo del catálogo · fuente: "Catalogo" (Proyección de Núcleos)',
+      grupos: [
+        {key:"herbicida", nombre:"Herbicidas", containerId:"herbicidaChart", items:[
+          {nombre:"HEXAZINONA 75 WG", valor:971875, codigo:"2000934"},
+          {nombre:"INDAZIFLAM", valor:770000, codigo:"2001400"},
+          {nombre:"CARFENTRAZONE ETIL", valor:597424, codigo:"2000866"},
+          {nombre:"CARFENTRAZONE ETHYL", valor:452320, codigo:"2001362"},
+          {nombre:"BISPIRIBAC SODIO", valor:342160, codigo:"2001361"},
+          {nombre:"GLIFOSATO 500", valor:320925, codigo:"2000042"}
+        ]},
+        {key:"fungicida", nombre:"Fungicidas", containerId:"fungicidaChart", items:[
+          {nombre:"MYCLOBUTANIL", valor:331935, codigo:"2001859"},
+          {nombre:"TEBUCONAZOLE", valor:230443, codigo:"2000841"},
+          {nombre:"AGRODYNE", valor:171150, codigo:"2001153"},
+          {nombre:"ENGEO 247 SC", valor:170567, codigo:"2001002"},
+          {nombre:"AZOXYSTROBIN", valor:141680, codigo:"2000852"},
+          {nombre:"FENBUCONAZOLE", valor:136307, codigo:"2000067"}
+        ]},
+        {key:"insecticida", nombre:"Insecticidas", containerId:"insecticidaChart", items:[
+          {nombre:"LORSBAN 2.5 P.E. INSECTICIDA", valor:796075, codigo:"2000050"},
+          {nombre:"CLORPIRIFOS EN POLVO", valor:795964, codigo:"2001265"},
+          {nombre:"TRACER - EXALT", valor:428828, codigo:"2000026"},
+          {nombre:"CLOTHIANIDIN 50 WG", valor:380627, codigo:"2001876"},
+          {nombre:"TASPA 500 EC", valor:221604, codigo:"2001406"},
+          {nombre:"DIPTEREX SP-80 INSECTICIDA", valor:160740, codigo:"2000060"}
+        ]}
+      ],
+      resumen: [
+        {label:"Precio prom. Herbicida", valor:150080, count:37},
+        {label:"Precio prom. Fungicida", valor:105607, count:21},
+        {label:"Precio prom. Insecticida", valor:200159, count:17}
+      ],
+      nota: "75 ítems con costo registrado en el catálogo (se excluyeron 11 con valores extremos, aparente error de captura en el archivo fuente)."
+    }
+  };
+
+  function computeInsumosAgg(dataset){
+    var rows = dataset.rows;
+    var monthly = {}; // seriesKey -> [12 {sum,count}]
+    dataset.series.forEach(function(s){ monthly[s.key] = new Array(12).fill(null).map(function(){ return {sum:0,count:0}; }); });
+    var proveedores = new Set();
+    var kpiVals = [];
+    rows.forEach(function(r){
+      proveedores.add(r.proveedor);
+      dataset.series.forEach(function(s){
+        var v = r[s.key];
+        if(v!=null){ monthly[s.key][r.mes].sum += v; monthly[s.key][r.mes].count += 1; }
+      });
+      if(r[dataset.kpiPrincipal]!=null) kpiVals.push(r[dataset.kpiPrincipal]);
+    });
+    var monthlyAvg = {};
+    dataset.series.forEach(function(s){
+      monthlyAvg[s.key] = monthly[s.key].map(function(c){ return c.count ? (c.sum/c.count) : null; });
+    });
+    var cantidadTotal = rows.reduce(function(a,r){ return a + (r.cantidad||0); }, 0);
+    function avgOf(key){
+      var vals = rows.map(function(r){return r[key];}).filter(function(v){return v!=null;});
+      return vals.length ? vals.reduce(function(a,b){return a+b;},0)/vals.length : 0;
+    }
+    return {
+      monthlyAvg: monthlyAvg,
+      proveedoresCount: proveedores.size,
+      lineasCount: rows.length,
+      kpiMin: kpiVals.length?Math.min.apply(null,kpiVals):0,
+      kpiMax: kpiVals.length?Math.max.apply(null,kpiVals):0,
+      avgOf: avgOf,
+      cantidadTotal: cantidadTotal
+    };
+  }
+
+  function renderInsumosKPIs(dataset, agg){
+    var tiles = [];
+    dataset.series.forEach(function(s){
+      tiles.push({label:"Precio prom. "+s.nombre.toUpperCase(), value: fmtCOP.format(Math.round(agg.avgOf(s.key))), sub:"por kilo"});
+    });
+    var kpiPrincipalNombre = dataset.series.find(function(s){return s.key===dataset.kpiPrincipal;}).nombre;
+    tiles.push({label:"Rango precio "+kpiPrincipalNombre, value: fmtCOP.format(agg.kpiMin)+' – '+fmtCOP.format(agg.kpiMax), sub:"mín – máx registrado"});
+    tiles.push({label:"Compras registradas", value: agg.lineasCount.toLocaleString('es-CO'), sub: agg.lineasCount.toLocaleString('es-CO')+' líneas · '+agg.proveedoresCount+' proveedores'});
+    if(agg.cantidadTotal){
+      tiles.push({label:"Cantidad total comprada", value: Math.round(agg.cantidadTotal).toLocaleString('es-CO')+' kg', sub:"acumulado 2026"});
+    }
+    document.getElementById('insumosKpiGrid').innerHTML = tiles.map(function(t){
+      return '<div class="kpi"><div class="label">'+esc(t.label)+'</div><div class="value num">'+t.value+'</div><div class="sub">'+esc(t.sub)+'</div></div>';
+    }).join('');
+  }
+
+  function renderInsumosChart(dataset, agg){
+    var svg = document.getElementById('insumosChart');
+    var W=1000,H=220, padL=4, padR=54, padB=22, padT=16;
+    var allVals = [];
+    dataset.series.forEach(function(s){ agg.monthlyAvg[s.key].forEach(function(v){ if(v!=null) allVals.push(v); }); });
+    var max = Math.max.apply(null, allVals) || 1;
+    var plotW = W-padL-padR, plotH = H-padT-padB;
+    var baseY = padT + plotH;
+    function xFor(mi){ return padL + plotW * (mi/11); }
+    function yFor(v){ return padT + plotH * (1 - v/max); }
+
+    var parts = ['<defs>'];
+    dataset.series.forEach(function(s){
+      parts.push('<linearGradient id="grad-insumos-'+s.key+'" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0%" stop-color="'+s.color+'" stop-opacity="0.28"/><stop offset="100%" stop-color="'+s.color+'" stop-opacity="0"/></linearGradient>');
+    });
+    parts.push('</defs>');
+    parts.push('<line x1="'+padL+'" y1="'+baseY+'" x2="'+(W-padR)+'" y2="'+baseY+'" stroke="var(--axis)" stroke-width="1"/>');
+    for(var mi=0; mi<12; mi++){
+      parts.push('<text x="'+xFor(mi).toFixed(1)+'" y="'+(H-6)+'" font-size="9" fill="var(--muted)" text-anchor="middle" font-family="JetBrains Mono, monospace">'+MES_ABBR[mi]+'</text>');
+    }
+
+    var endLabels = [];
+    dataset.series.forEach(function(s){
+      var vals = agg.monthlyAvg[s.key];
+      var pts = [], pathD = "";
+      vals.forEach(function(v, mi){
+        if(v==null) return;
+        var x = xFor(mi), yy = yFor(v);
+        pathD += (pathD?"L":"M") + x.toFixed(1) + " " + yy.toFixed(1) + " ";
+        pts.push({x:x,y:yy,mi:mi,v:v});
+      });
+      if(!pts.length) return;
+      var areaD = "M"+pts[0].x.toFixed(1)+" "+baseY+" L"+pathD.slice(1)+" L"+pts[pts.length-1].x.toFixed(1)+" "+baseY+" Z";
+      parts.push('<path d="'+areaD+'" fill="url(#grad-insumos-'+s.key+')" stroke="none"/>');
+      parts.push('<path d="'+pathD+'" fill="none" stroke="'+s.color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>');
+      pts.forEach(function(p){
+        parts.push('<circle class="ipt" data-key="'+s.key+'" data-mi="'+p.mi+'" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3.4" fill="'+s.color+'" stroke="var(--surface)" stroke-width="1.4" style="cursor:pointer"/>');
+      });
+      var last = pts[pts.length-1];
+      endLabels.push({x:last.x, y:last.y, color:s.color, text: fmtCOP.format(Math.round(last.v))});
+    });
+
+    endLabels.sort(function(a,b){ return a.y-b.y; });
+    for(var li=1; li<endLabels.length; li++){
+      if(endLabels[li].y < endLabels[li-1].y + 15){ endLabels[li].y = endLabels[li-1].y + 15; }
+    }
+    endLabels.forEach(function(lb){
+      var lx = lb.x+9, ly = lb.y+3.5, w = 10 + lb.text.length*6.3;
+      parts.push('<rect x="'+(lx-3).toFixed(1)+'" y="'+(ly-10.5).toFixed(1)+'" width="'+w.toFixed(1)+'" height="14" rx="4" fill="var(--surface)" opacity="0.85"/>');
+      parts.push('<text x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" font-size="10" font-weight="700" fill="'+lb.color+'" font-family="JetBrains Mono, monospace">'+lb.text+'</text>');
+    });
+
+    svg.innerHTML = parts.join('');
+
+    var tooltip = document.getElementById('insumosTooltip');
+    svg.querySelectorAll('.ipt').forEach(function(pt){
+      pt.addEventListener('mouseenter', function(){ pt.setAttribute('r','5'); });
+      pt.addEventListener('mouseleave', function(){ pt.setAttribute('r','3.4'); tooltip.classList.remove('show'); });
+      pt.addEventListener('mousemove', function(ev){
+        var key = pt.getAttribute('data-key'), mi = +pt.getAttribute('data-mi');
+        var v = agg.monthlyAvg[key][mi];
+        var s = dataset.series.find(function(x){return x.key===key;});
+        var rect = svg.getBoundingClientRect();
+        tooltip.style.left = (ev.clientX-rect.left)+'px';
+        tooltip.style.top = (ev.clientY-rect.top)+'px';
+        tooltip.innerHTML = '<strong>'+s.nombre+' · '+MES_NOMBRE[mi]+'</strong><br>'+fmtCOP.format(Math.round(v))+' / kg';
+        tooltip.classList.add('show');
+      });
+    });
+
+    document.getElementById('insumosLegend').innerHTML = dataset.series.map(function(s){
+      return '<span class="legend-toggle" style="cursor:default"><span class="swatch" style="background:'+s.color+'"></span>'+esc(s.nombre)+'</span>';
+    }).join('');
+
+    var mesesSinDatos = [];
+    for(var m=0; m<12; m++){
+      var tieneAlgo = dataset.series.some(function(s){ return agg.monthlyAvg[s.key][m]!=null; });
+      if(!tieneAlgo) mesesSinDatos.push(MES_NOMBRE[m].toLowerCase());
+    }
+    document.getElementById('insumosGapsNote').textContent = mesesSinDatos.length
+      ? 'Sin compras registradas en '+mesesSinDatos.join(', ')+' — esos meses no tienen punto en la línea.'
+      : '';
+  }
+
+  // Busca, en el histórico real de compras (DETAIL), la última compra de cada insumo y la compra
+  // más reciente del año anterior a esa, para comparar precio actual vs. año anterior.
+  var ITEM_PRICE_INDEX = null;
+  function buildItemPriceIndex(){
+    var idx = {};
+    DETAIL.forEach(function(r){
+      if(!r.ref || !r.f) return;
+      var key = r.ref.trim();
+      if(!idx[key]) idx[key] = [];
+      idx[key].push({f:r.f, vn:r.vn});
+    });
+    Object.keys(idx).forEach(function(k){ idx[k].sort(function(a,b){ return a.f<b.f?1:-1; }); });
+    return idx;
+  }
+  // Cruce por código "Referencia" (más confiable que por nombre, evita falsos positivos entre insumos distintos).
+  function lookupUltimoYAnterior(codigo){
+    if(!codigo) return null;
+    var list = ITEM_PRICE_INDEX[codigo.trim()];
+    if(!list || !list.length) return null;
+    var ultimo = list[0];
+    var anioUltimo = parseInt(ultimo.f.slice(0,4),10);
+    var anterior = list.find(function(x){ return parseInt(x.f.slice(0,4),10) === anioUltimo-1; });
+    return {
+      ultimoValor: ultimo.vn, ultimaFecha: ultimo.f,
+      anteriorValor: anterior ? anterior.vn : null, anteriorFecha: anterior ? anterior.f : null
+    };
+  }
+  function enrichControlQuimicoConCompras(){
+    if(!DETAIL) return;
+    ITEM_PRICE_INDEX = buildItemPriceIndex();
+    INSUMOS_DATASETS.controlQuimico.grupos.forEach(function(g){
+      g.items.forEach(function(it){
+        var m = lookupUltimoYAnterior(it.codigo);
+        if(m){
+          it.valor = m.ultimoValor;
+          it.fecha = m.ultimaFecha;
+          it.anteriorValor = m.anteriorValor;
+          it.anteriorFecha = m.anteriorFecha;
+          it.variacionPct = (m.anteriorValor!=null && m.anteriorValor!==0) ? ((m.ultimoValor-m.anteriorValor)/m.anteriorValor*100) : null;
+          it.matched = true;
+        } else {
+          it.matched = false;
+        }
+      });
+      g.items.sort(function(a,b){ return b.valor-a.valor; });
+    });
+  }
+
+  function renderSnapshotCompareList(containerId, items){
+    var max = Math.max.apply(null, items.map(function(i){return i.valor;})) || 1;
+    var html = items.map(function(it){
+      var w = Math.max((it.valor/max*100), 1.5);
+      var subHtml;
+      if(it.matched){
+        var piece = 'Últ. compra '+esc(it.fecha);
+        if(it.anteriorValor!=null && it.variacionPct!=null){
+          var cls = it.variacionPct>0.5?'var-up':(it.variacionPct<-0.5?'var-down':'var-flat');
+          var arrow = it.variacionPct>0.5?'▲':(it.variacionPct<-0.5?'▼':'—');
+          piece += ' · vs '+esc(it.anteriorFecha.slice(0,4))+': <span class="'+cls+'">'+arrow+' '+Math.abs(it.variacionPct).toFixed(0)+'%</span>';
+        } else {
+          piece += ' · sin compra el año anterior';
+        }
+        subHtml = '<div class="lbl-sub">'+piece+'</div>';
+      } else {
+        subHtml = '<div class="lbl-sub">catálogo · sin compra registrada</div>';
+      }
+      return '<div class="barrow" title="'+esc(it.nombre)+'">'+
+        '<div class="lbl"><div class="lbl-main">'+esc(it.nombre)+'</div>'+subHtml+'</div>'+
+        '<div class="track"><div class="fill" style="width:'+w.toFixed(1)+'%"></div></div>'+
+        '<div class="val num">'+compact(it.valor)+'</div>'+
+        '</div>';
+    }).join('');
+    document.getElementById(containerId).innerHTML = html;
+  }
+
+  function renderInsumosSnapshot(dataset){
+    enrichControlQuimicoConCompras();
+    var tiles = dataset.resumen.map(function(r){
+      return {label:r.label, value: fmtCOP.format(r.valor), sub: r.count+' ítems con costo registrado'};
+    });
+    document.getElementById('insumosKpiGrid').innerHTML = tiles.map(function(t){
+      return '<div class="kpi"><div class="label">'+esc(t.label)+'</div><div class="value num">'+t.value+'</div><div class="sub">'+esc(t.sub)+'</div></div>';
+    }).join('');
+    dataset.grupos.forEach(function(g){
+      renderSnapshotCompareList(g.containerId, g.items);
+    });
+    document.getElementById('insumosSnapshotNote').textContent = dataset.nota + ' Donde hay compra registrada en el histórico, se muestra el precio de la última compra real en vez del costo de catálogo, comparado contra la compra del año anterior.';
+  }
+
+  function renderInsumosCategoria(cat){
+    var dataset = INSUMOS_DATASETS[cat];
+    document.getElementById('btnFertilizacion').classList.toggle('active', cat==='fertilizacion');
+    document.getElementById('btnControlQuimico').classList.toggle('active', cat==='controlQuimico');
+    if(!dataset){
+      document.getElementById('insumosTrendView').style.display = 'block';
+      document.getElementById('insumosSnapshotView').style.display = 'none';
+      document.getElementById('insumosFuente').textContent = 'Sin datos de Control Químico todavía';
+      document.getElementById('insumosKpiGrid').innerHTML = '<div class="kpi"><div class="label">Control Químico</div><div class="sub" style="margin-top:4px">Pendiente de incorporar la fuente de datos.</div></div>';
+      document.getElementById('insumosChart').innerHTML = '';
+      document.getElementById('insumosLegend').innerHTML = '';
+      document.getElementById('insumosGapsNote').textContent = '';
+      return;
+    }
+    document.getElementById('insumosFuente').textContent = dataset.fuente;
+    if(dataset.type === 'snapshot'){
+      document.getElementById('insumosTrendView').style.display = 'none';
+      document.getElementById('insumosSnapshotView').style.display = 'block';
+      renderInsumosSnapshot(dataset);
+      return;
+    }
+    document.getElementById('insumosTrendView').style.display = 'block';
+    document.getElementById('insumosSnapshotView').style.display = 'none';
+    var agg = computeInsumosAgg(dataset);
+    renderInsumosKPIs(dataset, agg);
+    renderInsumosChart(dataset, agg);
+  }
+
+  function wireInsumosToggle(){
+    document.getElementById('btnFertilizacion').addEventListener('click', function(){ renderInsumosCategoria('fertilizacion'); });
+    document.getElementById('btnControlQuimico').addEventListener('click', function(){ renderInsumosCategoria('controlQuimico'); });
+  }
+  wireInsumosToggle();
+  renderInsumosCategoria('fertilizacion');
+
+  // ---------------- Boot (Supabase) ----------------
+  // Proyecto "SEGUIMIENTO DE COMPRAS" ya creado y con los datos cargados (36.911 filas).
+  // SUPABASE_ANON_KEY es la clave pública "publishable" — segura para usarse en el navegador
+  // porque la tabla solo permite SELECT (ver policy "Lectura pública" en schema.sql). Si TI la
+  // rota desde el panel de Supabase, solo hay que actualizar este valor, nada más del código.
+  var SUPABASE_URL = 'https://hftjvqsvsyjmgqxcbrci.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_j98w6gmwsc7wpxc6veakaA_dI27lmTX';
+
+  // La API REST de Supabase devuelve máximo 1000 filas por llamada; paginamos con Range hasta
+  // traer las ~36.900 líneas completas (unas 37 llamadas de 1000 filas cada una).
+  // Nota: solo se envía el header "apikey" (no "Authorization: Bearer") — las claves nuevas de
+  // Supabase (sb_publishable_/sb_secret_) no son JWT y no deben mandarse como bearer token.
+  function fetchAllFromSupabase(table, selectCols){
+    var pageSize = 1000;
+    var all = [];
+    function fetchPage(offset){
+      var url = SUPABASE_URL + '/rest/v1/' + table + '?select=' + selectCols;
+      return fetch(url, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Range-Unit': 'items',
+          'Range': offset + '-' + (offset + pageSize - 1)
+        }
+      }).then(function(r){ return r.json(); }).then(function(rows){
+        all = all.concat(rows);
+        if(rows.length === pageSize){ return fetchPage(offset + pageSize); }
+        return all;
+      });
+    }
+    return fetchPage(0);
+  }
+
+  var SUPA_COLS = 'fecha,nro_orden,proveedor,item,referencia,grupo_materiales,tipos_material,area,centro_costo,estado,valor_neto,cantidad_pendiente,empresa';
+
+  fetchAllFromSupabase('compras_detalle', SUPA_COLS).then(function(rows){
+    // Reempaca los nombres de columna de Supabase (snake_case) al formato compacto que usa
+    // el resto de este script (f,no,pr,it,ref,gm,tm,ar,cc,es,vn,cp,em) — así no hubo que
+    // reescribir toda la lógica de cálculo, solo esta capa de carga de datos.
+    DETAIL = rows.map(function(r){
+      return {
+        f: r.fecha, no: r.nro_orden, pr: r.proveedor, it: r.item, ref: r.referencia,
+        gm: r.grupo_materiales, tm: r.tipos_material, ar: r.area, cc: r.centro_costo,
+        es: r.estado, vn: Number(r.valor_neto), cp: Number(r.cantidad_pendiente),
+        em: r.empresa
+      };
+    });
+    var fullAgg = computeAll(DETAIL);
+    populateFilterOptions(fullAgg);
+    wireGlobalFilters();
+    renderAll();
+  }).catch(function(err){
+    document.getElementById('kpiGrid').innerHTML = '<div class="kpi">Error cargando datos de Supabase: '+esc(err.message)+'</div>';
+    document.getElementById('areaMatrixTable').innerHTML = '<tbody><tr><td class="loading-row">Error cargando detalle.</td></tr></tbody>';
+  });
+
+})();
+</script>
+
+</body>
+</html>
