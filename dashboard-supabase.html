@@ -12,7 +12,7 @@ body{margin:0;}
 :root{
   --bg:#f9f9f7; --surface:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
   --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
-  --accent:#1fa23e; --accent-2:#f2780c;
+  --accent:#1fa23e; --accent-2:#f2780c; --brand-red:#d11117;
   --chart-green:#1fa23e; --chart-orange:#f2780c; --chart-blue:#1565d8;
   --line-1:#1fa23e; --line-2:#f2780c; --line-3:#1565d8;
   --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
@@ -23,7 +23,7 @@ body{margin:0;}
   :root:not([data-theme="light"]){
     --bg:#0d0d0d; --surface:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
     --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
-    --accent:#3dcb5c; --accent-2:#ff9433;
+    --accent:#3dcb5c; --accent-2:#ff9433; --brand-red:#e8434a;
     --chart-green:#3dcb5c; --chart-orange:#ff9433; --chart-blue:#4c8dff;
     --line-1:#3dcb5c; --line-2:#ff9433; --line-3:#4c8dff;
     --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767;
@@ -34,7 +34,7 @@ body{margin:0;}
 :root[data-theme="dark"]{
   --bg:#0d0d0d; --surface:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
   --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
-  --accent:#3dcb5c; --accent-2:#ff9433;
+  --accent:#3dcb5c; --accent-2:#ff9433; --brand-red:#e8434a;
   --chart-green:#3dcb5c; --chart-orange:#ff9433; --chart-blue:#4c8dff;
   --line-1:#3dcb5c; --line-2:#ff9433; --line-3:#4c8dff;
   --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767;
@@ -51,20 +51,36 @@ code,.mono{font-family:"JetBrains Mono", ui-monospace, monospace;}
 /* ---------- header ---------- */
 header.top{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--bg); padding-block:14px 10px; border-bottom:1px solid var(--border);}
 .title-row{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;}
-h1{font-size:1.4rem; font-weight:700; margin:0; letter-spacing:-0.01em;}
-.subtitle{color:var(--text-secondary); font-size:0.85rem; margin-top:2px;}
-.meta{color:var(--muted); font-size:0.78rem; text-align:right;}
+h1{font-size:1.4rem; font-weight:700; margin:0; letter-spacing:-0.01em; text-transform:uppercase;}
 .year-filter{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;}
 .chip{border:1px solid var(--border); background:var(--surface); color:var(--text-secondary); padding:5px 12px; border-radius:999px; font-size:0.8rem; font-weight:500; cursor:pointer; transition:background .15s, color .15s, border-color .15s;}
 .chip:hover{border-color:var(--accent);}
 .chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
 
 /* ---------- KPIs ---------- */
-.kpi-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px; margin-block:16px;}
-.kpi{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; min-width:0;}
-.kpi .label{font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px;}
+.kpi-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-block:16px;}
+@media (max-width:760px){ .kpi-grid{grid-template-columns:repeat(2, 1fr);} }
+@media (max-width:460px){ .kpi-grid{grid-template-columns:1fr;} }
+.kpi{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:12px 14px; min-width:0; text-align:center;}
+.kpi .label{font-size:0.74rem; color:var(--accent); font-weight:700; letter-spacing:.02em; margin-bottom:4px; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .kpi .value{font-size:1.3rem; font-weight:700; line-height:1.15;}
 .kpi .sub{font-size:0.74rem; color:var(--text-secondary); margin-top:3px;}
+.kpi.clickable{cursor:pointer; transition:border-color .15s, transform .15s;}
+.kpi.clickable:hover{border-color:var(--accent); transform:translateY(-1px);}
+
+/* ---------- KPI detail modal ---------- */
+.kpi-modal-backdrop{position:fixed; inset:0; background:rgba(11,11,11,0.45); display:flex; align-items:center; justify-content:center; padding:20px; z-index:100;}
+.kpi-modal-backdrop[hidden]{display:none;}
+.kpi-modal{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; max-width:420px; width:100%; max-height:80vh; overflow-y:auto;}
+.kpi-modal h3{margin:0 0 14px; font-size:1.05rem; font-weight:700;}
+.kpi-modal-close{float:right; background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer; line-height:1; padding:2px 4px;}
+.kpi-modal-close:hover{color:var(--text-primary);}
+.kpi-modal-list{list-style:none; margin:0; padding:0;}
+.kpi-modal-list li{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--border);}
+.kpi-modal-list li:last-child{border-bottom:none;}
+.kpi-modal-rank{color:var(--muted); font-size:0.78rem; font-weight:700; width:20px; flex-shrink:0;}
+.kpi-modal-name{flex:1; font-size:0.88rem; text-align:left;}
+.kpi-modal-value{font-weight:700; font-size:0.9rem; flex-shrink:0;}
 
 /* ---------- sections / cards ---------- */
 section{margin-block:22px;}
@@ -174,10 +190,8 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
 <header class="top">
   <div class="title-row">
     <div>
-      <h1>Compras &amp; Abastecimiento <span style="color:var(--accent)">· Castilla Agrícola</span></h1>
-      <div class="subtitle">Seguimiento de órdenes de compra · fuente: SIESA</div>
+      <h1>Compras &amp; Abastecimiento <span style="color:var(--brand-red)">· Castilla Agrícola S.A.</span></h1>
     </div>
-    <div class="meta">Corte de datos: 28 sep 2026<br>36.911 líneas · 13.048 órdenes</div>
   </div>
   <div class="global-filters" id="globalFilters">
     <span class="gf-label">Filtrar:</span>
@@ -191,6 +205,14 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
 </header>
 
 <div class="kpi-grid" id="kpiGrid"></div>
+
+<div class="kpi-modal-backdrop" id="kpiModalBackdrop" hidden>
+  <div class="kpi-modal">
+    <button class="kpi-modal-close" id="kpiModalCloseBtn" type="button" aria-label="Cerrar">✕</button>
+    <h3 id="kpiModalTitle"></h3>
+    <ul class="kpi-modal-list" id="kpiModalList"></ul>
+  </div>
+</div>
 
 <section>
   <div class="section-head">
@@ -293,7 +315,7 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
   </div>
 </section>
 
-<section>
+<section id="insumos">
   <div class="section-head">
     <h2>Precios de mercado — Insumos</h2>
     <span class="hint" id="insumosFuente">Urea, Urea recubierta, KCL y Mezcla especial · Año 2026 · fuente: "Compras Mezcla"</span>
@@ -374,17 +396,46 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     var topProv = agg.byProveedorTop10[0] || {nombre:"—", valor:0};
     var promedioOrden = agg.totalOrdenes ? (agg.totalNeto / agg.totalOrdenes) : 0;
     var tiles = [
-      {label:"Gasto total (compra real)", value: compact(agg.totalNeto), sub: fmtCOP.format(agg.totalNeto)},
-      {label:"Órdenes de compra", value: agg.totalOrdenes.toLocaleString('es-CO'), sub: agg.totalFilas.toLocaleString('es-CO')+' líneas'},
-      {label:"Valor pendiente", value: compact(agg.pendingValue), sub: agg.pendingCount.toLocaleString('es-CO')+' líneas ('+pct.toFixed(1)+'%)'},
-      {label:"Tasa de cumplimiento", value: cumplidoPct.toFixed(1)+'%', sub: cumplido.count.toLocaleString('es-CO')+' líneas cumplidas'},
-      {label:"Mayor proveedor", value: compact(topProv.valor), sub: topProv.nombre},
-      {label:"Valor promedio por orden", value: compact(promedioOrden), sub: 'excluye órdenes anuladas'},
+      {label:"Gasto total (Bienes y Servicios)", value: compact(agg.totalNeto)},
+      {label:"Mayor proveedor", value: compact(topProv.valor), sub: topProv.nombre, id:"kpiMayorProveedor"},
+      {label:"Órdenes de compra", value: agg.totalOrdenes.toLocaleString('es-CO')},
+      {label:"Tasa de cumplimiento", value: cumplidoPct.toFixed(1)+'%'},
+      {label:"Valor pendiente", value: compact(agg.pendingValue)},
+      {label:"Valor promedio por orden", value: compact(promedioOrden)},
     ];
     document.getElementById('kpiGrid').innerHTML = tiles.map(function(t){
-      return '<div class="kpi"><div class="label">'+esc(t.label)+'</div><div class="value num">'+t.value+'</div><div class="sub">'+esc(t.sub)+'</div></div>';
+      var idAttr = t.id ? ' id="'+t.id+'"' : '';
+      var clickable = t.id ? ' clickable' : '';
+      return '<div class="kpi'+clickable+'"'+idAttr+'><div class="label">'+esc(t.label)+'</div><div class="value num">'+t.value+'</div>'+(t.sub ? '<div class="sub">'+esc(t.sub)+'</div>' : '')+'</div>';
     }).join('');
+
+    var mpTile = document.getElementById('kpiMayorProveedor');
+    if (mpTile) {
+      mpTile.addEventListener('click', function(){
+        openKpiModal('Top 10 proveedores', agg.byProveedorTop10.map(function(p){
+          return { nombre: p.nombre, valor: compact(p.valor) };
+        }));
+      });
+    }
   }
+
+  // ---------------- KPI detail modal (top-N list) ----------------
+  function openKpiModal(title, rows){
+    var backdrop = document.getElementById('kpiModalBackdrop');
+    document.getElementById('kpiModalTitle').textContent = title;
+    document.getElementById('kpiModalList').innerHTML = rows.map(function(r, i){
+      return '<li><span class="kpi-modal-rank">'+(i+1)+'</span><span class="kpi-modal-name">'+esc(r.nombre)+'</span><span class="kpi-modal-value num">'+r.valor+'</span></li>';
+    }).join('');
+    backdrop.hidden = false;
+  }
+  function closeKpiModal(){ document.getElementById('kpiModalBackdrop').hidden = true; }
+  document.getElementById('kpiModalCloseBtn').addEventListener('click', closeKpiModal);
+  document.getElementById('kpiModalBackdrop').addEventListener('click', function(ev){
+    if (ev.target === ev.currentTarget) closeKpiModal();
+  });
+  document.addEventListener('keydown', function(ev){
+    if (ev.key === 'Escape') closeKpiModal();
+  });
 
   // ---------------- Clean line chart (one line per year, no area fill) ----------------
   function renderLineChart(ids, byYear, hiddenState, rerenderFn){
