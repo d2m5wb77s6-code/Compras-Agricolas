@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Portal de Compras · Bienes y Servicios</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f9f9f7; --surface:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+  --border:rgba(11,11,11,0.10);
+  --green:#1fa23e; --orange:#f2780c; --brand-red:#d11117; --brand-ink:#1d1d1c;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d0d0d; --surface:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --border:rgba(255,255,255,0.10);
+    --green:#3dcb5c; --orange:#ff9433; --brand-red:#e8434a; --brand-ink:#f2efe9;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d0d0d; --surface:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+  --border:rgba(255,255,255,0.10);
+  --green:#3dcb5c; --orange:#ff9433; --brand-red:#e8434a; --brand-ink:#f2efe9;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--text-primary); font-family:"Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif; padding-inline:16px; padding-block:0;}
+:root{padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
+.wrap{max-width:720px; margin:0 auto; padding-block:20px 48px;}
+.num{font-variant-numeric: tabular-nums;}
+
+/* header */
+.topbar{display:flex; align-items:center; gap:14px; margin-bottom:18px;}
+.mark{flex-shrink:0; width:52px; height:52px; object-fit:contain;}
+.titles h1{font-size:1.25rem; font-weight:800; margin:0; letter-spacing:-0.01em; line-height:1.25;}
+.titles .company{color:var(--text-secondary); font-size:0.92rem; margin-top:2px;}
+
+.searchrow{display:flex; gap:10px; align-items:center; margin-bottom:10px;}
+.searchbox{flex:1; display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:10px 16px;}
+.searchbox svg{flex-shrink:0; opacity:0.5;}
+.searchbox input{border:none; outline:none; background:none; color:var(--text-primary); font-family:inherit; font-size:0.9rem; width:100%;}
+.searchbox input::placeholder{color:var(--muted);}
+.datepill{flex-shrink:0; background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:10px 16px; font-size:0.8rem; font-weight:600; color:var(--text-secondary); white-space:nowrap;}
+
+.updated{color:var(--muted); font-size:0.76rem; margin-bottom:20px;}
+.updated strong{color:var(--text-secondary); font-weight:600;}
+
+/* hero */
+.hero{border-radius:16px; overflow:hidden; margin-bottom:22px; border:1px solid var(--border);}
+.hero svg{display:block; width:100%; height:auto;}
+
+/* cards */
+.card{display:block; text-decoration:none; color:inherit; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:16px; border-top:3px solid var(--accent-c, var(--green)); transition:transform .15s ease, box-shadow .15s ease;}
+.card:hover{transform:translateY(-2px); box-shadow:0 10px 24px rgba(11,11,11,0.08);}
+.card .icon{width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; margin-bottom:12px; background:color-mix(in srgb, var(--accent-c, var(--green)) 16%, transparent);}
+.card h2{font-size:1.05rem; font-weight:700; margin:0 0 6px;}
+.card p{color:var(--text-secondary); font-size:0.86rem; line-height:1.45; margin:0 0 14px;}
+.card .stat{background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 14px; font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px; min-height:1.2em;}
+.card .stat b{color:var(--text-primary);}
+.card .stat .accent{color:var(--accent-c, var(--green)); font-weight:700;}
+.card .open{font-weight:700; font-size:0.86rem; color:var(--accent-c, var(--green));}
+.card.hidden{display:none;}
+
+footer{color:var(--muted); font-size:0.74rem; text-align:center; margin-top:28px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <img class="mark" src="assets/logo-castilla.png" alt="Castilla Agrícola">
+    <div class="titles">
+      <h1>Portal de Compras · Bienes y Servicios</h1>
+      <div class="company">Castilla Agrícola S.A.</div>
+    </div>
+  </div>
+
+  <div class="searchrow">
+    <div class="searchbox">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Buscar en el portal: proveedores, insumos, compras…">
+    </div>
+    <div class="datepill" id="datePill"></div>
+  </div>
+
+  <div class="updated">Última actualización: <strong id="updatedText">—</strong></div>
+
+  <div class="hero">
+    <svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Campos de caña">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#eaf3e3"/>
+          <stop offset="100%" stop-color="#cfe8d6"/>
+        </linearGradient>
+        <linearGradient id="field1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2f8f3e"/>
+          <stop offset="100%" stop-color="#1fa23e"/>
+        </linearGradient>
+        <linearGradient id="field2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f2780c"/>
+          <stop offset="100%" stop-color="#d9690a"/>
+        </linearGradient>
+      </defs>
+      <rect width="720" height="220" fill="url(#sky)"/>
+      <path d="M0 150 Q180 110 360 140 T720 130 V220 H0 Z" fill="url(#field1)" opacity="0.92"/>
+      <path d="M0 190 Q200 160 400 185 T720 175 V220 H0 Z" fill="url(#field2)" opacity="0.85"/>
+      <g stroke="#ffffff" stroke-opacity="0.25" stroke-width="2">
+        <path d="M40 165 q10 -14 20 0" fill="none"/>
+        <path d="M90 170 q10 -14 20 0" fill="none"/>
+        <path d="M140 160 q10 -14 20 0" fill="none"/>
+        <path d="M200 175 q10 -14 20 0" fill="none"/>
+        <path d="M260 165 q10 -14 20 0" fill="none"/>
+        <path d="M320 178 q10 -14 20 0" fill="none"/>
+        <path d="M380 168 q10 -14 20 0" fill="none"/>
+        <path d="M440 176 q10 -14 20 0" fill="none"/>
+        <path d="M500 166 q10 -14 20 0" fill="none"/>
+        <path d="M560 174 q10 -14 20 0" fill="none"/>
+        <path d="M620 165 q10 -14 20 0" fill="none"/>
+        <path d="M670 172 q10 -14 20 0" fill="none"/>
+      </g>
+      <circle cx="610" cy="48" r="26" fill="#ffd166" opacity="0.9"/>
+    </svg>
+  </div>
+
+  <div id="cardsWrap">
+
+    <a class="card" id="cardDashboard" style="--accent-c:#1fa23e" href="dashboard-supabase.html">
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1fa23e" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+      </div>
+      <h2>Dashboard de Compras</h2>
+      <p>Gasto por tipo de material, proveedor y área · tendencias mensuales, variación año a año y estado de las órdenes.</p>
+      <div class="stat" id="statDashboard">Cargando datos en vivo…</div>
+      <div class="open">Abrir →</div>
+    </a>
+
+    <a class="card" id="cardInsumos" style="--accent-c:#f2780c" href="dashboard-supabase.html#insumos">
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f2780c" stroke-width="2"><path d="M12 22c5-3 8-7 8-12a8 8 0 0 0-16 0c0 5 3 9 8 12Z"/><path d="M12 14a4 4 0 0 0 4-4"/></svg>
+      </div>
+      <h2>Precios de mercado — Insumos</h2>
+      <p>Urea, Urea recubierta, KCL y Mezcla especial · herbicidas, fungicidas e insecticidas con su último precio de compra.</p>
+      <div class="stat">Fertilización 2026 · Urea prom. <b>$3.111</b>/kg · <span class="accent">11 compras registradas</span></div>
+      <div class="open">Abrir →</div>
+    </a>
+
+    <a class="card" id="cardEstructura" style="--accent-c:#d11117" href="estructura.html">
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d11117" stroke-width="2"><circle cx="12" cy="7" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>
+      </div>
+      <h2>Estructura del área</h2>
+      <p>Mapa conceptual por rangos: coordinación y analistas del equipo de Compras de Bienes y Servicios.</p>
+      <div class="stat">3 cargos · <span class="accent">2 empresas (Castilla y Riopaila)</span></div>
+      <div class="open">Abrir →</div>
+    </a>
+
+  </div>
+
+  <footer>Portal de Compras · Castilla Agrícola · datos conectados a Supabase en vivo</footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  var now = new Date();
+  document.getElementById('datePill').textContent = now.getDate()+' '+MESES[now.getMonth()].slice(0,3).toUpperCase()+' '+now.getFullYear();
+  document.getElementById('updatedText').textContent = '28 sep 2026';
+
+  function fmtCOP(n){
+    return new Intl.NumberFormat('es-CO', {style:'currency', currency:'COP', maximumFractionDigits:0}).format(n);
+  }
+  function compact(n){
+    if(n >= 1e9) return '$'+(n/1e9).toFixed(2).replace('.',',')+'MM';
+    if(n >= 1e6) return '$'+(n/1e6).toFixed(1).replace('.',',')+'M';
+    return '$'+n.toFixed(0);
+  }
+
+  fetch('https://hftjvqsvsyjmgqxcbrci.supabase.co/rest/v1/compras_resumen?select=*', {
+    headers: { 'apikey': 'sb_publishable_j98w6gmwsc7wpxc6veakaA_dI27lmTX' }
+  }).then(function(r){ return r.json(); }).then(function(rows){
+    var d = rows[0];
+    document.getElementById('statDashboard').innerHTML =
+      'Gasto total <b>'+compact(Number(d.total_valor))+'</b> · <span class="accent">'+Number(d.total_ordenes).toLocaleString('es-CO')+' órdenes</span>';
+  }).catch(function(){
+    document.getElementById('statDashboard').textContent = 'No se pudo cargar el resumen en vivo — abre el dashboard para ver el detalle.';
+  });
+
+  var searchInput = document.getElementById('searchInput');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  searchInput.addEventListener('input', function(){
+    var q = searchInput.value.trim().toLowerCase();
+    cards.forEach(function(c){
+      var text = c.textContent.toLowerCase();
+      c.classList.toggle('hidden', q.length>0 && text.indexOf(q)===-1);
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

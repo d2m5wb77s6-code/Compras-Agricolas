@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Estructura del área · Portal de Compras</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f9f9f7; --surface:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+  --border:rgba(11,11,11,0.10);
+  --green:#1fa23e; --orange:#f2780c; --brand-red:#d11117; --brand-ink:#1d1d1c;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d0d0d; --surface:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --border:rgba(255,255,255,0.10);
+    --green:#3dcb5c; --orange:#ff9433; --brand-red:#e8434a; --brand-ink:#f2efe9;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d0d0d; --surface:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+  --border:rgba(255,255,255,0.10);
+  --green:#3dcb5c; --orange:#ff9433; --brand-red:#e8434a; --brand-ink:#f2efe9;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--text-primary); font-family:"Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif; padding-inline:16px;}
+:root{padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
+.wrap{max-width:720px; margin:0 auto; padding-block:20px 48px;}
+
+.back{display:inline-flex; align-items:center; gap:6px; color:var(--text-secondary); text-decoration:none; font-size:0.86rem; font-weight:600; margin-bottom:18px;}
+.back:hover{color:var(--brand-red);}
+
+.pagehead h1{font-size:1.3rem; font-weight:800; margin:0 0 4px; letter-spacing:-0.01em;}
+.pagehead p{color:var(--text-secondary); font-size:0.9rem; margin:0 0 28px; line-height:1.5;}
+
+/* concept map */
+.map{display:flex; flex-direction:column; align-items:center; gap:0; margin-bottom:8px;}
+
+.rank-label{align-self:flex-start; font-size:0.74rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin:22px 0 10px;}
+.rank-label:first-child{margin-top:0;}
+
+.row{display:flex; justify-content:center; gap:20px; width:100%; flex-wrap:wrap;}
+
+.node{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 20px; min-width:220px; max-width:280px; text-align:center; box-shadow:0 2px 10px rgba(11,11,11,0.04);}
+.node.root{border-top:4px solid var(--brand-red);}
+.node.leaf{border-top:4px solid var(--orange);}
+.node .avatar{width:44px; height:44px; border-radius:50%; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1rem; color:#fff;}
+.node.root .avatar{background:var(--brand-red);}
+.node.leaf .avatar{background:var(--orange);}
+.node .role{font-size:0.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;}
+.node .name{font-size:0.98rem; font-weight:700; margin-bottom:6px;}
+.node .company{display:inline-block; font-size:0.72rem; font-weight:600; color:var(--text-secondary); background:var(--bg); border:1px solid var(--border); border-radius:999px; padding:3px 10px;}
+
+/* connectors */
+.connector{width:2px; height:26px; background:var(--border);}
+.branch{position:relative; width:100%; max-width:520px; height:26px;}
+.branch::before{content:""; position:absolute; left:50%; right:50%; top:0; height:2px; background:var(--border);}
+.branch.two::before{left:25%; right:25%;}
+.branch .drop{position:absolute; top:0; width:2px; height:26px; background:var(--border);}
+.branch .drop.center{left:50%; transform:translateX(-1px);}
+.branch .drop.l1{left:25%; transform:translateX(-1px);}
+.branch .drop.l2{left:75%; transform:translateX(-1px);}
+
+footer{color:var(--muted); font-size:0.74rem; text-align:center; margin-top:40px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <a class="back" href="index.html">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Volver al portal
+  </a>
+
+  <div class="pagehead">
+    <h1>Estructura del área</h1>
+    <p>Equipo de Compras de Bienes y Servicios · organizado por rango jerárquico.</p>
+  </div>
+
+  <div class="map">
+
+    <div class="rank-label">Rango 1 · Coordinación</div>
+    <div class="row">
+      <div class="node root">
+        <div class="avatar">AA</div>
+        <div class="role">Coordinadora de área</div>
+        <div class="name">Angela Viviana Astudillo</div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+    <div class="branch two">
+      <div class="drop l1"></div>
+      <div class="drop l2"></div>
+    </div>
+
+    <div class="rank-label">Rango 2 · Analistas</div>
+    <div class="row">
+      <div class="node leaf">
+        <div class="avatar">ST</div>
+        <div class="role">Analista I</div>
+        <div class="name">Sandra Lorena Tabares</div>
+        <div class="company">Castilla Agrícola</div>
+      </div>
+      <div class="node leaf">
+        <div class="avatar">NR</div>
+        <div class="role">Analista I</div>
+        <div class="name">Norberto Rojas Marín</div>
+        <div class="company">Riopaila Agrícola</div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>Portal de Compras · Castilla Agrícola</footer>
+
+</div>
+
+</body>
+</html>
