@@ -179,6 +179,18 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
 .matrix-table tr.total-row td{font-weight:700; border-top:2px solid var(--axis);}
 .toggle-row{display:flex; gap:8px; margin-bottom:12px;}
 
+/* insumo searchable select */
+.insumo-select-wrap{position:relative; margin-bottom:14px;}
+.insumo-select-input{width:100%; box-sizing:border-box; border:1px solid var(--border); background:var(--bg); color:var(--text-primary); border-radius:8px; padding:10px 12px; font-size:0.86rem; font-family:inherit;}
+.insumo-select-input:focus{outline:none; border-color:var(--accent);}
+.insumo-select-panel{position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:260px; overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 6px 20px rgba(11,11,11,0.12); z-index:30;}
+.insumo-select-panel[hidden]{display:none;}
+.insumo-select-opt{padding:8px 12px; font-size:0.84rem; cursor:pointer;}
+.insumo-select-opt:hover, .insumo-select-opt.active{background:var(--grid);}
+.insumo-select-empty{padding:10px 12px; font-size:0.82rem; color:var(--muted);}
+.insumo-trend-legend{display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:8px; font-size:0.78rem; color:var(--text-secondary);}
+.insumo-trend-legend .swatch{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; vertical-align:-1px;}
+
 /* area accordion */
 .area-acc-item{border-bottom:1px solid var(--border);}
 .area-acc-item:last-child{border-bottom:none;}
@@ -299,6 +311,22 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     <div class="card">
       <div class="section-head"><h2>Top 10 tipos de material</h2></div>
       <div class="barchart" id="tiposMaterialChart"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Tendencia de compra por insumo</h2>
+    <span class="hint">cantidad comprada por mes · una línea por proveedor</span>
+  </div>
+  <div class="card">
+    <div class="insumo-select-wrap">
+      <input type="text" id="insumoTendenciaInput" class="insumo-select-input" placeholder="Escribe para buscar un insumo (bienes)…" autocomplete="off">
+      <div class="insumo-select-panel" id="insumoTendenciaPanel" hidden></div>
+    </div>
+    <div id="insumoTendenciaBody">
+      <div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Elige un insumo arriba para ver su tendencia de compra.</div>
     </div>
   </div>
 </section>
@@ -815,6 +843,150 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     });
   }
 
+  // ---------------- Tendencia de compra por insumo (bienes): item seleccionable, línea por proveedor ----------------
+  var insumoItemList = [];
+  var insumoSelected = null;
+
+  function buildInsumoItemList(){
+    var set = {};
+    DETAIL.forEach(function(r){
+      if(r.gm && r.gm.indexOf('GRBI') >= 0 && r.it) set[r.it] = true;
+    });
+    return Object.keys(set).sort(function(a,b){ return a.localeCompare(b,'es'); });
+  }
+
+  function wireInsumoTendenciaSelect(){
+    insumoItemList = buildInsumoItemList();
+    var input = document.getElementById('insumoTendenciaInput');
+    var panel = document.getElementById('insumoTendenciaPanel');
+
+    function showMatches(q){
+      var query = q.trim().toLowerCase();
+      var matches = query ? insumoItemList.filter(function(it){ return it.toLowerCase().indexOf(query) >= 0; }) : insumoItemList;
+      matches = matches.slice(0, 50);
+      panel.innerHTML = matches.length
+        ? matches.map(function(it){ return '<div class="insumo-select-opt">'+esc(it)+'</div>'; }).join('')
+        : '<div class="insumo-select-empty">Sin resultados.</div>';
+      panel.hidden = false;
+    }
+
+    input.addEventListener('focus', function(){ showMatches(input.value); });
+    input.addEventListener('input', function(){ showMatches(input.value); });
+    panel.addEventListener('click', function(ev){
+      var opt = ev.target.closest('.insumo-select-opt');
+      if(!opt) return;
+      insumoSelected = opt.textContent;
+      input.value = insumoSelected;
+      panel.hidden = true;
+      renderInsumoTendencia();
+    });
+    document.addEventListener('click', function(ev){
+      if(!ev.target.closest('.insumo-select-wrap')) panel.hidden = true;
+    });
+  }
+
+  function renderInsumoTendencia(){
+    var body = document.getElementById('insumoTendenciaBody');
+    if(!insumoSelected){
+      body.innerHTML = '<div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Elige un insumo arriba para ver su tendencia de compra.</div>';
+      return;
+    }
+    var rows = DETAIL.filter(function(r){
+      return r.it === insumoSelected && r.es !== 'Anulado' && (!GFILTER.empresa || r.em === GFILTER.empresa);
+    });
+    if(!rows.length){
+      body.innerHTML = '<div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Sin compras registradas para este insumo con el filtro de empresa actual.</div>';
+      return;
+    }
+
+    var monthSet = {};
+    rows.forEach(function(r){ if(r.f) monthSet[r.f.slice(0,7)] = true; });
+    var months = Object.keys(monthSet).sort();
+
+    var provTotals = {};
+    rows.forEach(function(r){ provTotals[r.pr] = (provTotals[r.pr]||0) + r.co; });
+    var topProvs = Object.keys(provTotals).sort(function(a,b){ return provTotals[b]-provTotals[a]; }).slice(0, 8);
+
+    var series = {};
+    topProvs.forEach(function(p){ series[p] = {}; });
+    rows.forEach(function(r){
+      if(topProvs.indexOf(r.pr) === -1) return;
+      var mk = r.f.slice(0,7);
+      series[r.pr][mk] = (series[r.pr][mk]||0) + r.co;
+    });
+
+    var totalCantidad = rows.reduce(function(s,r){ return s+r.co; }, 0);
+
+    body.innerHTML =
+      '<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:10px;">'+esc(insumoSelected)+' · <b class="num">'+totalCantidad.toLocaleString('es-CO',{maximumFractionDigits:1})+'</b> unidades compradas en total · '+topProvs.length+' proveedor(es)</div>'+
+      '<div class="monthly-wrap"><svg class="monthly-svg" id="insumoTendenciaSvg" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg><div class="m-tooltip" id="insumoTendenciaTooltip"></div></div>'+
+      '<div class="insumo-trend-legend" id="insumoTendenciaLegend"></div>';
+
+    drawInsumoTendenciaChart(months, topProvs, series);
+  }
+
+  function drawInsumoTendenciaChart(months, provs, series){
+    var svg = document.getElementById('insumoTendenciaSvg');
+    var W=1000,H=220, padL=4, padR=10, padB=22, padT=16;
+    var allVals = [];
+    provs.forEach(function(p){ months.forEach(function(m){ if(series[p][m]!=null) allVals.push(series[p][m]); }); });
+    var max = Math.max.apply(null, allVals.concat([0])) || 1;
+    var plotW = W-padL-padR, plotH = H-padT-padB;
+    var baseY = padT+plotH;
+    var n = months.length;
+    function xFor(i){ return n<=1 ? padL : padL + plotW*(i/(n-1)); }
+    function yFor(v){ return padT + plotH*(1-v/max); }
+
+    var parts = [];
+    parts.push('<line x1="'+padL+'" y1="'+baseY+'" x2="'+(W-padR)+'" y2="'+baseY+'" stroke="var(--axis)" stroke-width="1"/>');
+    var step = Math.max(1, Math.ceil(n/12));
+    months.forEach(function(m, i){
+      if(i % step !== 0 && i !== n-1) return;
+      var label = MES_ABBR[parseInt(m.slice(5,7),10)-1] + ' ' + m.slice(2,4);
+      parts.push('<text x="'+xFor(i).toFixed(1)+'" y="'+(H-6)+'" font-size="9" fill="var(--muted)" text-anchor="middle" font-family="JetBrains Mono, monospace">'+label+'</text>');
+    });
+
+    provs.forEach(function(p, pi){
+      var color = catColors[pi % catColors.length];
+      var pts = [], pathD = "";
+      months.forEach(function(m, i){
+        var v = series[p][m];
+        if(v==null) return;
+        var x = xFor(i), y = yFor(v);
+        pathD += (pathD?"L":"M")+x.toFixed(1)+" "+y.toFixed(1)+" ";
+        pts.push({x:x,y:y,mk:m,v:v});
+      });
+      parts.push('<path d="'+pathD+'" fill="none" stroke="'+color+'" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>');
+      pts.forEach(function(pt){
+        parts.push('<circle class="itpt" data-prov="'+esc(p)+'" data-mk="'+pt.mk+'" cx="'+pt.x.toFixed(1)+'" cy="'+pt.y.toFixed(1)+'" r="3" fill="'+color+'" stroke="var(--surface)" stroke-width="1.2" style="cursor:pointer"/>');
+      });
+    });
+
+    svg.innerHTML = parts.join('');
+
+    var tooltip = document.getElementById('insumoTendenciaTooltip');
+    svg.querySelectorAll('.itpt').forEach(function(pt){
+      pt.addEventListener('mouseenter', function(){ pt.setAttribute('r','4.5'); });
+      pt.addEventListener('mouseleave', function(){ pt.setAttribute('r','3'); tooltip.classList.remove('show'); });
+      pt.addEventListener('mousemove', function(ev){
+        var prov = pt.getAttribute('data-prov'), mk = pt.getAttribute('data-mk');
+        var v = series[prov][mk];
+        var rect = svg.getBoundingClientRect();
+        tooltip.style.left = (ev.clientX-rect.left)+'px';
+        tooltip.style.top = (ev.clientY-rect.top)+'px';
+        var label = MES_ABBR[parseInt(mk.slice(5,7),10)-1]+' '+mk.slice(0,4);
+        tooltip.innerHTML = '<strong>'+esc(prov)+'</strong><br>'+label+': '+v.toLocaleString('es-CO',{maximumFractionDigits:1})+' unid.';
+        tooltip.classList.add('show');
+      });
+    });
+
+    var legend = document.getElementById('insumoTendenciaLegend');
+    legend.innerHTML = provs.map(function(p,pi){
+      var color = catColors[pi % catColors.length];
+      return '<span><span class="swatch" style="background:'+color+'"></span>'+esc(p)+'</span>';
+    }).join('');
+  }
+
   // ---------------- Master render: one pass driven by GFILTER ----------------
   function updateEmpresaTitle(){
     var map = { "Castilla Agrícola": "· Castilla Agrícola S.A.", "Riopaila Agrícola": "· Riopaila Agrícola S.A." };
@@ -837,6 +1009,7 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     if(currentAgg.byTiposMaterialTop10.length){ renderExpandableBarChart('tiposMaterialChart', currentAgg.byTiposMaterialTop10, 'contratista'); }
     else { document.getElementById('tiposMaterialChart').innerHTML = '<div style="font-size:0.8rem; color:var(--muted)">Sin datos para estos filtros.</div>'; }
     renderAreaMatrixFromAgg(currentAgg);
+    renderInsumoTendencia();
   }
 
   // Generic multi-select "pill" dropdown: a toggle button + a checkbox panel, backed by a GFILTER array.
@@ -1261,23 +1434,25 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     return fetchPage(0);
   }
 
-  var SUPA_COLS = 'fecha,nro_orden,proveedor,item,referencia,grupo_materiales,tipos_material,area,centro_costo,estado,valor_neto,cantidad_pendiente,empresa';
+  var SUPA_COLS = 'fecha,nro_orden,proveedor,item,referencia,grupo_materiales,tipos_material,area,centro_costo,estado,valor_neto,cantidad_pendiente,cantidad_ordenada,empresa';
 
   fetchAllFromSupabase('compras_detalle', SUPA_COLS).then(function(rows){
     // Reempaca los nombres de columna de Supabase (snake_case) al formato compacto que usa
-    // el resto de este script (f,no,pr,it,ref,gm,tm,ar,cc,es,vn,cp,em) — así no hubo que
+    // el resto de este script (f,no,pr,it,ref,gm,tm,ar,cc,es,vn,cp,co,em) — así no hubo que
     // reescribir toda la lógica de cálculo, solo esta capa de carga de datos.
     DETAIL = rows.map(function(r){
       return {
         f: r.fecha, no: r.nro_orden, pr: r.proveedor, it: r.item, ref: r.referencia,
         gm: r.grupo_materiales, tm: r.tipos_material, ar: r.area, cc: r.centro_costo,
         es: r.estado, vn: Number(r.valor_neto), cp: Number(r.cantidad_pendiente),
+        co: r.cantidad_ordenada==null ? 0 : Number(r.cantidad_ordenada),
         em: r.empresa
       };
     });
     var fullAgg = computeAll(DETAIL);
     populateFilterOptions(fullAgg);
     wireGlobalFilters();
+    wireInsumoTendenciaSelect();
     renderAll();
   }).catch(function(err){
     document.getElementById('kpiGrid').innerHTML = '<div class="kpi">Error cargando datos de Supabase: '+esc(err.message)+'</div>';
