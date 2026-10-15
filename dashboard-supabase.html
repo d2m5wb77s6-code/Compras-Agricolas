@@ -177,6 +177,22 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
 .matrix-table th:first-child, .matrix-table td:first-child{text-align:left;}
 .matrix-table td{padding:8px 10px; border-top:1px solid var(--border); text-align:right; white-space:nowrap;}
 .matrix-table tr.total-row td{font-weight:700; border-top:2px solid var(--axis);}
+.toggle-row{display:flex; gap:8px; margin-bottom:12px;}
+
+/* area accordion */
+.area-acc-item{border-bottom:1px solid var(--border);}
+.area-acc-item:last-child{border-bottom:none;}
+.area-acc-header{display:flex; align-items:center; gap:12px; width:100%; background:none; border:none; padding:13px 2px; cursor:pointer; font-family:inherit; text-align:left;}
+.area-acc-header:hover{background:var(--grid);}
+.area-acc-name{flex:1; font-size:0.9rem; font-weight:600; color:var(--text-primary); min-width:0;}
+.area-acc-total{font-size:0.9rem; font-weight:700; flex-shrink:0;}
+.area-acc-chevron{color:var(--muted); font-size:0.75rem; transition:transform .15s; flex-shrink:0;}
+.area-acc-header.open .area-acc-chevron{transform:rotate(180deg);}
+.area-acc-body{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:10px; padding:4px 2px 16px;}
+.area-acc-body[hidden]{display:none;}
+.area-stat{background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:3px; min-width:0;}
+.area-stat-label{font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.area-stat .num, .area-stat .var-up, .area-stat .var-down, .area-stat .var-flat{font-size:0.86rem; font-weight:600;}
 .var-up{color:var(--critical); font-weight:600;}
 .var-down{color:var(--good); font-weight:600;}
 .var-flat{color:var(--muted);}
@@ -190,7 +206,7 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
 <header class="top">
   <div class="title-row">
     <div>
-      <h1>Compras &amp; Abastecimiento <span style="color:var(--brand-red)">· Castilla Agrícola S.A.</span></h1>
+      <h1>Compras &amp; Abastecimiento <span id="empresaTitle" style="color:var(--brand-red)">· Castilla Agrícola S.A.</span></h1>
     </div>
   </div>
   <div class="global-filters" id="globalFilters">
@@ -292,15 +308,12 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     <h2>Top 10 proveedores por categoría</h2>
     <span class="hint">separado por tipo de gasto · gasto por año y variación año a año</span>
   </div>
-  <div class="grid-2">
-    <div class="card">
-      <div class="section-head"><h2>Bienes</h2></div>
-      <div class="table-scroll"><table class="matrix-table" id="proveedorBienesChart"></table></div>
+  <div class="card">
+    <div class="toggle-row">
+      <button class="chip active" id="btnProvBienes" type="button">Bienes</button>
+      <button class="chip" id="btnProvServicios" type="button">Servicios</button>
     </div>
-    <div class="card">
-      <div class="section-head"><h2>Servicios</h2></div>
-      <div class="table-scroll"><table class="matrix-table" id="proveedorServiciosChart"></table></div>
-    </div>
+    <div class="table-scroll"><table class="matrix-table" id="proveedorCategoriaChart"></table></div>
   </div>
 </section>
 
@@ -310,9 +323,7 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     <span class="hint">Bienes/Servicios = acumulado del año más reciente · años y variación año a año</span>
   </div>
   <div class="card">
-    <div class="table-scroll">
-      <table class="matrix-table" id="areaMatrixTable"><tbody><tr><td class="loading-row">Calculando matriz de áreas…</td></tr></tbody></table>
-    </div>
+    <div id="areaAccordion"><div class="loading-row">Calculando gasto por área…</div></div>
   </div>
 </section>
 
@@ -722,27 +733,43 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
   function renderAreaMatrixFromAgg(agg){
     var years = agg.years;
     var latestYear = years[years.length-1] || '';
-    function varCell(prev, curr){
-      if(!prev) return '<td class="var-flat">—</td>';
+    function varStat(label, prev, curr){
+      if(!prev) return '<div class="area-stat"><span class="area-stat-label">'+esc(label)+'</span><span class="var-flat">—</span></div>';
       var pct = (curr-prev)/prev*100;
       var cls = pct > 0.5 ? 'var-up' : (pct < -0.5 ? 'var-down' : 'var-flat');
       var arrow = pct > 0.5 ? '▲' : (pct < -0.5 ? '▼' : '—');
-      return '<td class="'+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</td>';
+      return '<div class="area-stat"><span class="area-stat-label">'+esc(label)+'</span><span class="'+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</span></div>';
     }
-    var thead = '<thead><tr><th>Área</th><th>Bienes ('+latestYear+')</th><th>Servicios ('+latestYear+')</th>'+
-      years.map(function(y){ return '<th>'+y+'</th>'; }).join('')+
-      years.slice(1).map(function(y,i){ return '<th>Var. '+years[i]+'→'+y+'</th>'; }).join('')+
-      '<th>Total</th></tr></thead>';
-    var tbody = '<tbody>' + agg.areaRows.map(function(a){
-      var cells = '<td>'+esc(a.nombre)+'</td>'+
-        '<td class="num">'+compact(a.bienes)+'</td>'+
-        '<td class="num">'+compact(a.servicios)+'</td>'+
-        years.map(function(y){ return '<td class="num">'+(a.byYear[y]?compact(a.byYear[y]):'—')+'</td>'; }).join('')+
-        years.slice(1).map(function(y,i){ return varCell(a.byYear[years[i]], a.byYear[y]); }).join('')+
-        '<td class="num">'+compact(a.total)+'</td>';
-      return '<tr>'+cells+'</tr>';
-    }).join('') + '</tbody>';
-    document.getElementById('areaMatrixTable').innerHTML = agg.areaRows.length ? (thead+tbody) : '<tbody><tr><td class="loading-row">Sin datos para estos filtros.</td></tr></tbody>';
+    var container = document.getElementById('areaAccordion');
+    if(!agg.areaRows.length){
+      container.innerHTML = '<div class="loading-row">Sin datos para estos filtros.</div>';
+      return;
+    }
+    container.innerHTML = agg.areaRows.map(function(a, i){
+      var yearStats = years.map(function(y){
+        return '<div class="area-stat"><span class="area-stat-label">'+y+'</span><span class="num">'+(a.byYear[y]?compact(a.byYear[y]):'—')+'</span></div>';
+      }).join('');
+      var varStats = years.slice(1).map(function(y,idx){ return varStat('Var. '+years[idx]+'→'+y, a.byYear[years[idx]], a.byYear[y]); }).join('');
+      return '<div class="area-acc-item">'+
+        '<button class="area-acc-header" type="button" data-idx="'+i+'">'+
+          '<span class="area-acc-name">'+esc(a.nombre)+'</span>'+
+          '<span class="area-acc-total num">'+compact(a.total)+'</span>'+
+          '<span class="area-acc-chevron">▾</span>'+
+        '</button>'+
+        '<div class="area-acc-body" hidden>'+
+          '<div class="area-stat"><span class="area-stat-label">Bienes ('+latestYear+')</span><span class="num">'+compact(a.bienes)+'</span></div>'+
+          '<div class="area-stat"><span class="area-stat-label">Servicios ('+latestYear+')</span><span class="num">'+compact(a.servicios)+'</span></div>'+
+          yearStats + varStats +
+        '</div>'+
+      '</div>';
+    }).join('');
+    container.querySelectorAll('.area-acc-header').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var body = btn.nextElementSibling;
+        body.hidden = !body.hidden;
+        btn.classList.toggle('open', !body.hidden);
+      });
+    });
   }
 
   function renderProveedorMatrix(containerId, rows, years, nameLabel){
@@ -768,8 +795,34 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     document.getElementById(containerId).innerHTML = rows.length ? (thead+tbody) : '<tbody><tr><td class="loading-row">Sin datos para estos filtros.</td></tr></tbody>';
   }
 
+  var provCategoriaTab = 'bienes';
+  function renderProveedorCategoria(){
+    var rows = provCategoriaTab === 'bienes' ? currentAgg.byProveedorBienesTop10 : currentAgg.byProveedorServiciosTop10;
+    renderProveedorMatrix('proveedorCategoriaChart', rows, currentAgg.years, 'Proveedor');
+  }
+  function wireProveedorCategoriaToggle(){
+    document.getElementById('btnProvBienes').addEventListener('click', function(){
+      provCategoriaTab = 'bienes';
+      this.classList.add('active');
+      document.getElementById('btnProvServicios').classList.remove('active');
+      renderProveedorCategoria();
+    });
+    document.getElementById('btnProvServicios').addEventListener('click', function(){
+      provCategoriaTab = 'servicios';
+      this.classList.add('active');
+      document.getElementById('btnProvBienes').classList.remove('active');
+      renderProveedorCategoria();
+    });
+  }
+
   // ---------------- Master render: one pass driven by GFILTER ----------------
+  function updateEmpresaTitle(){
+    var map = { "Castilla Agrícola": "· Castilla Agrícola S.A.", "Riopaila Agrícola": "· Riopaila Agrícola S.A." };
+    document.getElementById('empresaTitle').textContent = map[GFILTER.empresa] || "· Castilla y Riopaila Agrícola";
+  }
+
   function renderAll(){
+    updateEmpresaTitle();
     var rows = getChartsFilteredDetail();
     currentAgg = computeAll(rows);
     renderKPIs(currentAgg);
@@ -778,8 +831,7 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     redrawServiciosChart();
     renderSplit('tipoSplitBar','tipoLegend', currentAgg.byTipo, function(n){ return n.indexOf('BIENES')>=0 ? 'var(--s1)' : 'var(--s2)'; });
     renderSplit('estadoSplitBar','estadoLegend', currentAgg.byEstado, colorForStatus);
-    renderProveedorMatrix('proveedorBienesChart', currentAgg.byProveedorBienesTop10, currentAgg.years, 'Proveedor');
-    renderProveedorMatrix('proveedorServiciosChart', currentAgg.byProveedorServiciosTop10, currentAgg.years, 'Proveedor');
+    renderProveedorCategoria();
     if(currentAgg.icamTop10.length){ renderExpandableBarChart('icamChart', currentAgg.icamTop10, 'proveedor'); }
     else { document.getElementById('icamChart').innerHTML = '<div style="font-size:0.8rem; color:var(--muted)">Sin datos para ICAM - Insumos campo.</div>'; }
     if(currentAgg.byTiposMaterialTop10.length){ renderExpandableBarChart('tiposMaterialChart', currentAgg.byTiposMaterialTop10, 'contratista'); }
@@ -1174,6 +1226,7 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     document.getElementById('btnControlQuimico').addEventListener('click', function(){ renderInsumosCategoria('controlQuimico'); });
   }
   wireInsumosToggle();
+  wireProveedorCategoriaToggle();
   renderInsumosCategoria('fertilizacion');
 
   // ---------------- Boot (Supabase) ----------------
@@ -1228,7 +1281,7 @@ footer{color:var(--muted); font-size:0.74rem; padding-block:24px 32px; border-to
     renderAll();
   }).catch(function(err){
     document.getElementById('kpiGrid').innerHTML = '<div class="kpi">Error cargando datos de Supabase: '+esc(err.message)+'</div>';
-    document.getElementById('areaMatrixTable').innerHTML = '<tbody><tr><td class="loading-row">Error cargando detalle.</td></tr></tbody>';
+    document.getElementById('areaAccordion').innerHTML = '<div class="loading-row">Error cargando detalle.</div>';
   });
 
 })();
