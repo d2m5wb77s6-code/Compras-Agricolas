@@ -284,6 +284,16 @@ tr.da-sub[hidden]{display:none;}
 .vval span{font-size:0.74rem; color:var(--muted);}
 .vbar{width:100%; max-width:84px; border-radius:6px 6px 0 0; transition:height .4s ease, filter .15s;}
 .vcol:hover .vbar{filter:brightness(1.1);}
+.im-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(250px,1fr)); gap:12px; margin-top:4px;}
+.im-grid[hidden]{display:none;}
+.im-card{border:1px solid var(--border); border-radius:10px; padding:12px 14px 8px; background:var(--bg); min-width:0;}
+.im-name{display:flex; align-items:center; gap:7px; font-size:0.84rem; font-weight:600; color:var(--text-primary);}
+.im-name .swatch{width:10px; height:10px; border-radius:3px;}
+.im-price{font-size:1.45rem; font-weight:700; letter-spacing:-0.02em; margin-top:4px; line-height:1.15;}
+.im-price span{font-size:0.72rem; font-weight:500; color:var(--muted); letter-spacing:0;}
+.im-sub{font-size:0.74rem; color:var(--text-secondary); margin:3px 0 4px; line-height:1.35;}
+.im-card svg{display:block; margin-top:2px;}
+#insumosGapsNote{font-size:0.76rem; color:var(--muted); margin-top:10px;}
 .vcol.clickable{cursor:pointer; border-radius:8px 8px 0 0; transition:background .15s;}
 .vcol.clickable:hover, .vcol.clickable:focus-visible{background:color-mix(in srgb, var(--grid) 55%, transparent); outline:none;}
 .vcol.sel{background:color-mix(in srgb, var(--accent) 12%, transparent);}
@@ -511,12 +521,17 @@ tr.da-sub[hidden]{display:none;}
   <div class="card" id="insumosTrendView" style="margin-top:14px;">
     <div class="section-head">
       <h2 style="font-size:0.85rem">Evolución mensual de precio por kilo</h2>
-      <span class="hint">promedio cuando hay más de una compra en el mes</span>
+      <div class="toggle-row" style="margin:0">
+        <button class="chip active" id="btnInsLineas" type="button">Líneas</button>
+        <button class="chip" id="btnInsMultiples" type="button">Por insumo</button>
+      </div>
+      <span class="hint" style="flex-basis:100%">promedio cuando hay más de una compra en el mes</span>
     </div>
-    <div class="monthly-wrap">
-      <svg class="monthly-svg" id="insumosChart" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+    <div class="monthly-wrap" id="insumosLineasWrap">
+      <svg class="monthly-svg" id="insumosChart" viewBox="0 0 1000 240" preserveAspectRatio="none" style="height:240px"></svg>
       <div class="m-tooltip" id="insumosTooltip"></div>
     </div>
+    <div class="im-grid" id="insumosMultiples" hidden></div>
     <div class="legend-inline" id="insumosLegend"></div>
     <div class="hint" id="insumosGapsNote" style="margin-top:10px;"></div>
   </div>
@@ -1639,26 +1654,62 @@ tr.da-sub[hidden]{display:none;}
     }).join('');
   }
 
+  // ---------------- Evolución mensual de precio por kilo: dos diseños (Líneas / Por insumo), sin sombreado ----------------
+  var insumosMode = 'lineas', lastInsumos = null;
+  function fmtPrecio(v){ return fmtCOP.format(Math.round(v)); }
+  // Escala "bonita" que NO parte de cero (es una serie de precios): deja ver las diferencias entre insumos
+  function niceAxis(min, max){
+    var range = (max - min) || Math.max(max*0.1, 1);
+    var raw = range / 3, steps = [10,20,25,50,100,200,250,500,1000,2000,2500,5000,10000,20000];
+    var step = steps.filter(function(x){ return x >= raw; })[0] || 50000;
+    var lo = Math.max(0, Math.floor((min - range*0.12)/step)*step);
+    var hi = Math.ceil((max + range*0.12)/step)*step;
+    var ticks = [];
+    for(var t = lo; t <= hi + 1e-6; t += step) ticks.push(t);
+    return {lo:lo, hi:hi, ticks:ticks};
+  }
+
   function renderInsumosChart(dataset, agg){
+    lastInsumos = {dataset:dataset, agg:agg};
+    var lineas = insumosMode === 'lineas';
+    document.getElementById('insumosLineasWrap').style.display = lineas ? '' : 'none';
+    document.getElementById('insumosLegend').style.display = lineas ? '' : 'none';
+    document.getElementById('insumosMultiples').hidden = lineas;
+    document.getElementById('btnInsLineas').classList.toggle('active', lineas);
+    document.getElementById('btnInsMultiples').classList.toggle('active', !lineas);
+    if(lineas) renderInsumosLineas(dataset, agg); else renderInsumosMultiples(dataset, agg);
+
+    var mesesSinDatos = [];
+    for(var m=0; m<12; m++){
+      var tieneAlgo = dataset.series.some(function(s){ return agg.monthlyAvg[s.key][m]!=null; });
+      if(!tieneAlgo) mesesSinDatos.push(MES_NOMBRE[m].toLowerCase());
+    }
+    document.getElementById('insumosGapsNote').textContent = mesesSinDatos.length
+      ? 'Sin compras registradas en '+mesesSinDatos.join(', ')+' — esos meses no tienen punto en la línea.'
+      : '';
+  }
+
+  function renderInsumosLineas(dataset, agg){
     var svg = document.getElementById('insumosChart');
-    var W=1000,H=220, padL=4, padR=54, padB=22, padT=16;
+    var W=1000, H=240, padL=62, padR=74, padB=24, padT=14;
     var allVals = [];
     dataset.series.forEach(function(s){ agg.monthlyAvg[s.key].forEach(function(v){ if(v!=null) allVals.push(v); }); });
-    var max = Math.max.apply(null, allVals) || 1;
+    if(!allVals.length){ svg.innerHTML = ''; document.getElementById('insumosLegend').innerHTML = ''; return; }
+    var ax = niceAxis(Math.min.apply(null, allVals), Math.max.apply(null, allVals));
     var plotW = W-padL-padR, plotH = H-padT-padB;
     var baseY = padT + plotH;
     function xFor(mi){ return padL + plotW * (mi/11); }
-    function yFor(v){ return padT + plotH * (1 - v/max); }
+    function yFor(v){ return padT + plotH * (1 - (v-ax.lo)/((ax.hi-ax.lo)||1)); }
 
-    var parts = ['<defs>'];
-    dataset.series.forEach(function(s){
-      parts.push('<linearGradient id="grad-insumos-'+s.key+'" x1="0" y1="0" x2="0" y2="1">'+
-        '<stop offset="0%" stop-color="'+s.color+'" stop-opacity="0.28"/><stop offset="100%" stop-color="'+s.color+'" stop-opacity="0"/></linearGradient>');
+    var parts = [];
+    ax.ticks.forEach(function(t){
+      var y = yFor(t);
+      parts.push('<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'" stroke="var(--grid)" stroke-width="1"/>');
+      parts.push('<text x="'+(padL-8)+'" y="'+(y+3).toFixed(1)+'" font-size="9" fill="var(--muted)" text-anchor="end" font-family="JetBrains Mono, monospace">'+fmtPrecio(t)+'</text>');
     });
-    parts.push('</defs>');
     parts.push('<line x1="'+padL+'" y1="'+baseY+'" x2="'+(W-padR)+'" y2="'+baseY+'" stroke="var(--axis)" stroke-width="1"/>');
     for(var mi=0; mi<12; mi++){
-      parts.push('<text x="'+xFor(mi).toFixed(1)+'" y="'+(H-6)+'" font-size="9" fill="var(--muted)" text-anchor="middle" font-family="JetBrains Mono, monospace">'+MES_ABBR[mi]+'</text>');
+      parts.push('<text x="'+xFor(mi).toFixed(1)+'" y="'+(H-7)+'" font-size="9" fill="var(--muted)" text-anchor="middle" font-family="JetBrains Mono, monospace">'+MES_ABBR[mi]+'</text>');
     }
 
     var endLabels = [];
@@ -1672,14 +1723,12 @@ tr.da-sub[hidden]{display:none;}
         pts.push({x:x,y:yy,mi:mi,v:v});
       });
       if(!pts.length) return;
-      var areaD = "M"+pts[0].x.toFixed(1)+" "+baseY+" L"+pathD.slice(1)+" L"+pts[pts.length-1].x.toFixed(1)+" "+baseY+" Z";
-      parts.push('<path d="'+areaD+'" fill="url(#grad-insumos-'+s.key+')" stroke="none"/>');
-      parts.push('<path d="'+pathD+'" fill="none" stroke="'+s.color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>');
+      parts.push('<path d="'+pathD+'" fill="none" stroke="'+s.color+'" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>');
       pts.forEach(function(p){
-        parts.push('<circle class="ipt" data-key="'+s.key+'" data-mi="'+p.mi+'" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3.4" fill="'+s.color+'" stroke="var(--surface)" stroke-width="1.4" style="cursor:pointer"/>');
+        parts.push('<circle class="ipt" data-key="'+s.key+'" data-mi="'+p.mi+'" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3" fill="'+s.color+'" stroke="var(--surface)" stroke-width="1.2" style="cursor:pointer"/>');
       });
       var last = pts[pts.length-1];
-      endLabels.push({x:last.x, y:last.y, color:s.color, text: fmtCOP.format(Math.round(last.v))});
+      endLabels.push({x:last.x, y:last.y, color:s.color, text: fmtPrecio(last.v)});
     });
 
     endLabels.sort(function(a,b){ return a.y-b.y; });
@@ -1696,8 +1745,8 @@ tr.da-sub[hidden]{display:none;}
 
     var tooltip = document.getElementById('insumosTooltip');
     svg.querySelectorAll('.ipt').forEach(function(pt){
-      pt.addEventListener('mouseenter', function(){ pt.setAttribute('r','5'); });
-      pt.addEventListener('mouseleave', function(){ pt.setAttribute('r','3.4'); tooltip.classList.remove('show'); });
+      pt.addEventListener('mouseenter', function(){ pt.setAttribute('r','4.8'); });
+      pt.addEventListener('mouseleave', function(){ pt.setAttribute('r','3'); tooltip.classList.remove('show'); });
       pt.addEventListener('mousemove', function(ev){
         var key = pt.getAttribute('data-key'), mi = +pt.getAttribute('data-mi');
         var v = agg.monthlyAvg[key][mi];
@@ -1705,7 +1754,7 @@ tr.da-sub[hidden]{display:none;}
         var rect = svg.getBoundingClientRect();
         tooltip.style.left = (ev.clientX-rect.left)+'px';
         tooltip.style.top = (ev.clientY-rect.top)+'px';
-        tooltip.innerHTML = '<strong>'+s.nombre+' · '+MES_NOMBRE[mi]+'</strong><br>'+fmtCOP.format(Math.round(v))+' / kg';
+        tooltip.innerHTML = '<strong>'+s.nombre+' · '+MES_NOMBRE[mi]+'</strong><br>'+fmtPrecio(v)+' / kg';
         tooltip.classList.add('show');
       });
     });
@@ -1713,15 +1762,55 @@ tr.da-sub[hidden]{display:none;}
     document.getElementById('insumosLegend').innerHTML = dataset.series.map(function(s){
       return '<span class="legend-toggle" style="cursor:default"><span class="swatch" style="background:'+s.color+'"></span>'+esc(s.nombre)+'</span>';
     }).join('');
+  }
 
-    var mesesSinDatos = [];
-    for(var m=0; m<12; m++){
-      var tieneAlgo = dataset.series.some(function(s){ return agg.monthlyAvg[s.key][m]!=null; });
-      if(!tieneAlgo) mesesSinDatos.push(MES_NOMBRE[m].toLowerCase());
-    }
-    document.getElementById('insumosGapsNote').textContent = mesesSinDatos.length
-      ? 'Sin compras registradas en '+mesesSinDatos.join(', ')+' — esos meses no tienen punto en la línea.'
-      : '';
+  // Un gráfico pequeño por insumo (cada uno con su propia escala): sin superposición entre insumos
+  function renderInsumosMultiples(dataset, agg){
+    var host = document.getElementById('insumosMultiples');
+    host.innerHTML = dataset.series.map(function(s){
+      var vals = agg.monthlyAvg[s.key];
+      var pts = [];
+      vals.forEach(function(v, mi){ if(v != null) pts.push({mi:mi, v:v}); });
+      if(!pts.length){
+        return '<div class="im-card"><div class="im-name"><span class="swatch" style="background:'+s.color+'"></span>'+esc(s.nombre)+'</div><div class="im-sub">Sin compras registradas</div></div>';
+      }
+      var vs = pts.map(function(p){ return p.v; });
+      var mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs), last = pts[pts.length-1], first = pts[0];
+      var ax = niceAxis(mn, mx);
+      var W = 300, H = 112, padL = 8, padR = 10, padT = 10, padB = 20;
+      var plotW = W-padL-padR, plotH = H-padT-padB, baseY = padT+plotH;
+      function x(mi){ return padL + plotW*(mi/11); }
+      function y(v){ return padT + plotH*(1-(v-ax.lo)/((ax.hi-ax.lo)||1)); }
+      var g = '<line x1="'+padL+'" y1="'+baseY+'" x2="'+(W-padR)+'" y2="'+baseY+'" stroke="var(--axis)" stroke-width="1"/>';
+      [0,3,6,9,11].forEach(function(mi){
+        g += '<text x="'+x(mi).toFixed(1)+'" y="'+(H-6)+'" font-size="8.5" fill="var(--muted)" text-anchor="middle" font-family="JetBrains Mono, monospace">'+MES_ABBR[mi]+'</text>';
+      });
+      var d = pts.map(function(p, i){ return (i?'L':'M')+x(p.mi).toFixed(1)+' '+y(p.v).toFixed(1); }).join(' ');
+      if(pts.length > 1) g += '<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
+      pts.forEach(function(p){
+        var isLast = p === last;
+        g += '<circle cx="'+x(p.mi).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="'+(isLast?4.2:2.8)+'" fill="'+s.color+'" stroke="var(--surface)" stroke-width="1.2"><title>'+MES_NOMBRE[p.mi]+': '+fmtPrecio(p.v)+' / kg</title></circle>';
+      });
+      var sub;
+      if(pts.length > 1 && first.v){
+        var pct = (last.v-first.v)/first.v*100;
+        var cls = pct > 0.5 ? 'var-up' : (pct < -0.5 ? 'var-down' : 'var-flat');
+        var arrow = pct > 0.5 ? '▲' : (pct < -0.5 ? '▼' : '—');
+        sub = '<span class="'+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</span> desde '+MES_ABBR[first.mi]+'<br>mín '+fmtPrecio(mn)+' · máx '+fmtPrecio(mx);
+      } else {
+        sub = 'una sola compra registrada ('+MES_ABBR[first.mi]+')';
+      }
+      return '<div class="im-card">'+
+        '<div class="im-name"><span class="swatch" style="background:'+s.color+'"></span>'+esc(s.nombre)+'</div>'+
+        '<div class="im-price num">'+fmtPrecio(last.v)+' <span>/ kg · '+MES_ABBR[last.mi]+'</span></div>'+
+        '<div class="im-sub">'+sub+'</div>'+
+        '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Precio mensual de '+esc(s.nombre)+'">'+g+'</svg>'+
+      '</div>';
+    }).join('');
+  }
+  function wireInsumosModo(){
+    document.getElementById('btnInsLineas').addEventListener('click', function(){ insumosMode = 'lineas'; if(lastInsumos) renderInsumosChart(lastInsumos.dataset, lastInsumos.agg); });
+    document.getElementById('btnInsMultiples').addEventListener('click', function(){ insumosMode = 'multiples'; if(lastInsumos) renderInsumosChart(lastInsumos.dataset, lastInsumos.agg); });
   }
 
   // Busca, en el histórico real de compras (DETAIL), la última compra de cada insumo y la compra
@@ -1847,6 +1936,7 @@ tr.da-sub[hidden]{display:none;}
     document.getElementById('btnControlQuimico').addEventListener('click', function(){ renderInsumosCategoria('controlQuimico'); });
   }
   wireInsumosToggle();
+  wireInsumosModo();
   wireProveedorCategoriaToggle();
   wireAreaToggle();
   wireDetalleArea();
