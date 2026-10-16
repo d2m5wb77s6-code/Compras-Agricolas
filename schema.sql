@@ -18,6 +18,10 @@ create table if not exists public.compras_detalle (
   empresa text not null default 'Castilla Agrícola'
 );
 
+-- Columnas que el dashboard también usa (agregadas después de la primera carga). Es seguro ejecutarlas varias veces.
+alter table public.compras_detalle add column if not exists cantidad_ordenada numeric;
+alter table public.compras_detalle add column if not exists um text;   -- Unidad de medida: campo "U.M." del archivo de SIESA (KG, UN, LT, GL…)
+
 create index if not exists idx_compras_fecha on public.compras_detalle (fecha);
 create index if not exists idx_compras_tipos_material on public.compras_detalle (tipos_material);
 create index if not exists idx_compras_grupo_materiales on public.compras_detalle (grupo_materiales);

@@ -415,8 +415,9 @@ tr.da-sub[hidden]{display:none;}
       <h2 id="estadoDetalleTitle" style="font-size:0.95rem"></h2>
       <button class="chip" id="estadoDetalleClose" type="button">Cerrar ✕</button>
     </div>
-    <div class="filters">
+    <div class="filters" style="align-items:center">
       <input type="text" id="estadoDetalleBuscar" placeholder="Buscar por N° de orden, proveedor o área…" autocomplete="off">
+      <div class="toggle-row" id="estadoTipoChips" style="margin:0"></div>
     </div>
     <div id="estadoDetalleBody"></div>
   </div>
@@ -812,7 +813,8 @@ tr.da-sub[hidden]{display:none;}
   }
 
   // ---------------- Detalle de órdenes por estado (clic en una barra de "estado de las órdenes") ----------------
-  var estadoSel = null, estadoLimit = 50, estadoQuery = '';
+  var estadoSel = null, estadoLimit = 50, estadoQuery = '', estadoTipo = '';
+  var ESTADO_TIPOS = ['OCC','OCS','OCM'];
   var ESTADO_PAGE = 50;
   function markEstadoSelected(){
     document.querySelectorAll('#estadoSplitBar .vcol').forEach(function(c){
@@ -845,21 +847,42 @@ tr.da-sub[hidden]{display:none;}
       o.lines.push(r);
     });
     order.forEach(function(o){
+      var pref = ((String(o.no).match(/^[A-Za-z]+/) || [''])[0]).toUpperCase();
+      o.tipo = ESTADO_TIPOS.indexOf(pref) !== -1 ? pref : 'OTRAS';
       var ps = Object.keys(o.provs), as = Object.keys(o.areas);
       o.prov = ps.length === 0 ? '—' : (ps.length === 1 ? ps[0] : ps[0]+' (+'+(ps.length-1)+')');
       o.area = as.length === 0 ? '—' : (as.length === 1 ? as[0] : as[0]+' (+'+(as.length-1)+')');
     });
     var totalValor = order.reduce(function(s,o){ return s + o.valor; }, 0);
+    // Conteo por tipo de orden (OCC / OCS / OCM) dentro del estado seleccionado
+    var cnt = {OCC:0, OCS:0, OCM:0, OTRAS:0};
+    order.forEach(function(o){ cnt[o.tipo]++; });
+    if(estadoTipo && !cnt[estadoTipo]) estadoTipo = '';
+    var chips = [['', 'Todas', order.length]].concat(ESTADO_TIPOS.map(function(t){ return [t, t, cnt[t]]; }));
+    if(cnt.OTRAS) chips.push(['OTRAS', 'Otras', cnt.OTRAS]);
+    var chipsEl = document.getElementById('estadoTipoChips');
+    chipsEl.innerHTML = chips.map(function(c){
+      var off = c[0] && !c[2];
+      return '<button type="button" class="chip'+(estadoTipo === c[0] ? ' active' : '')+'" data-tipo="'+c[0]+'"'+(off ? ' disabled style="opacity:.45;cursor:default"' : '')+' title="'+(c[0] ? 'Órdenes '+esc(c[1]) : 'Todas las órdenes')+'">'+esc(c[1])+' <span style="opacity:.75">('+c[2].toLocaleString('es-CO')+')</span></button>';
+    }).join('');
+    chipsEl.querySelectorAll('.chip:not([disabled])').forEach(function(b){
+      b.addEventListener('click', function(){
+        estadoTipo = b.getAttribute('data-tipo'); estadoLimit = ESTADO_PAGE; renderEstadoDetalle();
+      });
+    });
     var q = estadoQuery.trim().toLowerCase();
-    var list = q ? order.filter(function(o){ return (o.no+' '+o.prov+' '+o.area).toLowerCase().indexOf(q) !== -1; }) : order;
+    var list = order.filter(function(o){
+      if(estadoTipo && o.tipo !== estadoTipo) return false;
+      return !q || (o.no+' '+o.prov+' '+o.area).toLowerCase().indexOf(q) !== -1;
+    });
     list = list.slice().sort(function(a,b){ return b.valor - a.valor || (a.f < b.f ? 1 : -1); });
 
     document.getElementById('estadoDetalleTitle').innerHTML = 'Órdenes en estado «'+esc(estadoSel)+'» · '+
       order.length.toLocaleString('es-CO')+(order.length === 1 ? ' orden' : ' órdenes')+' · '+compact(totalValor)+
-      (q ? ' <span style="font-weight:500;color:var(--muted)">(mostrando '+list.length.toLocaleString('es-CO')+' que coinciden)</span>' : '');
+      ((q || estadoTipo) ? ' <span style="font-weight:500;color:var(--muted)">(mostrando '+list.length.toLocaleString('es-CO')+(estadoTipo ? ' · '+(estadoTipo === 'OTRAS' ? 'otras' : estadoTipo) : '')+')</span>' : '');
 
     var body = document.getElementById('estadoDetalleBody');
-    if(!list.length){ body.innerHTML = '<div class="loading-row">Ninguna orden coincide con la búsqueda.</div>'; panel.hidden = false; return; }
+    if(!list.length){ body.innerHTML = '<div class="loading-row">Ninguna orden coincide con los filtros.</div>'; panel.hidden = false; return; }
     var shown = list.slice(0, estadoLimit);
     var trs = shown.map(function(o){
       var lines = o.lines.slice().sort(function(a,b){ return b.vn - a.vn; });
@@ -1375,7 +1398,9 @@ tr.da-sub[hidden]{display:none;}
     var unidad = units[0] || 'unid.';
     var unidadNota = '';
     if(units.length > 1) unidadNota = ' · <span style="color:var(--warning)">⚠ unidades mezcladas ('+esc(units.join(', '))+'): se suman tal cual</span>';
-    else if(!units.length) unidadNota = ' · <span style="color:var(--muted)">unidad de medida no disponible en la base</span>';
+    else if(!units.length) unidadNota = UNIT_COL
+      ? ' · <span style="color:var(--muted)">sin U.M. registrada para este insumo</span>'
+      : ' · <span style="color:var(--muted)">no se encontró la columna U.M. en la tabla compras_detalle</span>';
 
     body.innerHTML =
       '<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:10px;">'+esc(insumoSelected)+' · <b class="num">'+totalCantidad.toLocaleString('es-CO',{maximumFractionDigits:1})+'</b> '+esc(unidad)+' comprados en total · '+topProvs.length+' proveedor(es)'+unidadNota+'</div>'+
@@ -1980,20 +2005,26 @@ tr.da-sub[hidden]{display:none;}
   // Detecta cómo se llama la columna de unidad de medida en la tabla (unidad, unidad_medida, um, u_m, …).
   // Pide 1 fila con todas las columnas y busca el nombre; si no existe, el dashboard sigue funcionando.
   var UNIT_COL = null;
+  // Normaliza un nombre de columna: "U.M." / "u_m_" / "U M" -> "um"; "Unidad de Medida" -> "unidaddemedida"
+  function normCol(k){ return String(k).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,''); }
   function detectUnitColumn(){
     return fetch(SUPABASE_URL + '/rest/v1/compras_detalle?select=*&limit=1', { headers: { 'apikey': SUPABASE_ANON_KEY } })
       .then(function(r){ return r.json(); })
       .then(function(rows){
         var keys = (Array.isArray(rows) && rows[0]) ? Object.keys(rows[0]) : [];
-        var exact = /^(unidad|unidad_medida|unidad_de_medida|u_?m|um|und|uom|unidad_compra)$/i;
-        UNIT_COL = keys.filter(function(k){ return exact.test(k); })[0]
-                || keys.filter(function(k){ return /unidad|medida/i.test(k); })[0] || null;
+        var exact = ['um','udm','uom','und','unidad','unidades','unidadmedida','unidaddemedida','unidadcompra','unidadinventario'];
+        UNIT_COL = keys.filter(function(k){ return exact.indexOf(normCol(k)) !== -1; })[0]
+                || keys.filter(function(k){ var n = normCol(k); return n.indexOf('unidad') === 0 || n.indexOf('medida') !== -1; })[0]
+                || null;
+        if(!UNIT_COL && keys.length) console.info('[Compras] No se encontró la columna U.M. Columnas disponibles en compras_detalle:', keys.join(', '));
       })
       .catch(function(){ UNIT_COL = null; });
   }
+  // Un nombre de columna con puntos, mayúsculas o espacios debe ir entre comillas dobles en la URL de Supabase
+  function selCol(c){ return /^[a-z_][a-z0-9_]*$/.test(c) ? c : encodeURIComponent('"' + c + '"'); }
 
   detectUnitColumn().then(function(){
-    return fetchAllFromSupabase('compras_detalle', SUPA_COLS + (UNIT_COL ? ',' + UNIT_COL : ''));
+    return fetchAllFromSupabase('compras_detalle', SUPA_COLS + (UNIT_COL ? ',' + selCol(UNIT_COL) : ''));
   }).then(function(rows){
     // Reempaca los nombres de columna de Supabase (snake_case) al formato compacto que usa
     // el resto de este script (f,no,pr,it,ref,gm,tm,ar,cc,es,vn,cp,co,em) — así no hubo que
