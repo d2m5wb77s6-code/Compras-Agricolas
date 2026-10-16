@@ -276,6 +276,14 @@ tr.da-sub[hidden]{display:none;}
 .da-lines td{padding:5px 10px; border-top:1px solid var(--border);}
 .da-lines td.t, .da-lines th.t{text-align:left;}
 .da-more{padding:7px 14px 0; font-size:0.74rem; color:var(--muted);}
+/* Herbicidas / Fungicidas / Insecticidas: el nombre va como título encima de su barra, completo y legible */
+.barchart.bar-titled{gap:15px;}
+.bar-titled .barrow{grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"lbl lbl" "track val"; row-gap:5px; column-gap:10px;}
+.bar-titled .barrow .lbl{grid-area:lbl; overflow:visible;}
+.bar-titled .barrow .track{grid-area:track;}
+.bar-titled .barrow .val{grid-area:val; font-size:0.86rem; font-weight:700;}
+.bar-titled .barrow .lbl-main{white-space:normal; overflow:visible; text-overflow:clip; font-size:0.86rem; font-weight:600; color:var(--text-primary); line-height:1.25;}
+.bar-titled .barrow .lbl-sub{white-space:normal; overflow:visible; text-overflow:clip; font-size:0.74rem; margin-top:2px;}
 @media (max-width:620px){
   h1{font-size:1.02rem;}
   .brand-logo{width:36px; height:36px;}
@@ -441,7 +449,7 @@ tr.da-sub[hidden]{display:none;}
 <section id="detalleArea">
   <div class="section-head">
     <h2>Detalle de compras por área</h2>
-    <span class="hint">qué compras explican el cambio frente al año anterior · clic en una fila para ver las órdenes</span>
+    <span class="hint">ordenado por Total de mayor a menor · clic en una fila para ver las órdenes</span>
   </div>
   <div class="card">
     <div class="da-controls">
@@ -1007,12 +1015,10 @@ tr.da-sub[hidden]{display:none;}
     var grand = years.reduce(function(s,y){ return s + sumYear[y]; }, 0);
     var totDelta = hasVar ? sumYear[lastY] - sumYear[prevY] : 0;
 
-    // Orden: primero lo que más se movió (aumento o disminución)
-    if(hasVar){
-      groups.sort(function(a,b){ return Math.abs(b.delta) - Math.abs(a.delta) || b.total - a.total; });
-    } else {
-      groups.sort(function(a,b){ return b.total - a.total; });
-    }
+    // Orden: columna Total de mayor a menor
+    groups.sort(function(a,b){ return b.total - a.total; });
+    // Para el resumen: conceptos que más se movieron (por valor absoluto del cambio)
+    var byDelta = groups.slice().sort(function(a,b){ return Math.abs(b.delta) - Math.abs(a.delta) || b.total - a.total; });
 
     // Resumen en lenguaje natural
     var tabLabel = {total:'Total', bienes:'Bienes', servicios:'Servicios'}[daTab];
@@ -1021,12 +1027,11 @@ tr.da-sub[hidden]{display:none;}
       var pct = sumYear[prevY] ? totDelta/sumYear[prevY]*100 : null;
       sumHtml += compact(sumYear[prevY])+' en '+prevY+' → '+compact(sumYear[lastY])+' en '+lastY;
       if(pct != null) sumHtml += ' (<b class="'+(pct>0.5?'var-up':(pct<-0.5?'var-down':'var-flat'))+'">'+(pct>0.5?'▲':(pct<-0.5?'▼':'—'))+' '+Math.abs(pct).toFixed(0)+'%</b>, '+(totDelta>=0?'+':'−')+compact(Math.abs(totDelta))+')';
-      var drivers = groups.filter(function(g){ return totDelta >= 0 ? g.delta > 0 : g.delta < 0; }).slice(0,3);
+      var drivers = byDelta.filter(function(g){ return totDelta >= 0 ? g.delta > 0 : g.delta < 0; }).slice(0,3);
       function lista(arr){ return arr.map(function(g){ return '<b>'+esc(g.nombre)+'</b> ('+(g.delta>=0?'+':'−')+compact(Math.abs(g.delta))+')'; }).join(', '); }
       if(drivers.length && Math.abs(totDelta) >= 0.5){
         sumHtml += '. '+(totDelta>=0?'Mayores aportes al aumento':'Mayores aportes a la disminución')+' ('+DA_BY[daBy].label.toLowerCase()+'): '+lista(drivers)+'.';
-        var contra = groups.filter(function(g){ return totDelta >= 0 ? g.delta < -0.5 : g.delta > 0.5; })
-                           .sort(function(a,b){ return Math.abs(b.delta) - Math.abs(a.delta); }).slice(0,2);
+        var contra = byDelta.filter(function(g){ return totDelta >= 0 ? g.delta < -0.5 : g.delta > 0.5; }).slice(0,2);
         if(contra.length) sumHtml += ' En sentido contrario: '+lista(contra)+'.';
       }
       function maxMonth(y){ var m = 0; all.forEach(function(r){ if(r.f && r.f.slice(0,4) === y){ var mm = parseInt(r.f.slice(5,7),10); if(mm > m) m = mm; } }); return m; }
@@ -1043,7 +1048,7 @@ tr.da-sub[hidden]{display:none;}
     var thead = '<thead><tr><th>'+esc(DA_BY[daBy].label)+'</th>'+
       years.map(function(y){ return '<th>'+y+'</th>'; }).join('')+
       (hasVar ? '<th>Cambio '+prevY+' → '+lastY+'</th><th>Var. %</th><th title="Puntos porcentuales que este concepto suma (+) o resta (−) a la variación total del área. Todas las filas suman la variación del Total.">Aporte a la var.</th>' : '')+
-      '<th>Total</th></tr></thead>';
+      '<th title="Ordenado de mayor a menor">Total ▼</th></tr></thead>';
     function ppCell(d){
       if(!hasVar || !sumYear[prevY]) return '<td class="var-flat">—</td>';
       var pp = d / sumYear[prevY] * 100;
@@ -1640,6 +1645,7 @@ tr.da-sub[hidden]{display:none;}
   }
 
   function renderSnapshotCompareList(containerId, items){
+    document.getElementById(containerId).classList.add('bar-titled');
     var max = Math.max.apply(null, items.map(function(i){return i.valor;})) || 1;
     var html = items.map(function(it){
       var w = Math.max((it.valor/max*100), 1.5);
