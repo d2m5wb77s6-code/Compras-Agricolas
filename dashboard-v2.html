@@ -405,9 +405,14 @@ section{margin-block:20px;}
 <section>
   <div class="section-head">
     <h2>Gasto por área</h2>
-    <span class="hint">Bienes/Servicios = acumulado del año más reciente · años y variación año a año</span>
+    <span class="hint">gasto por año y variación frente al año anterior</span>
   </div>
   <div class="card">
+    <div class="toggle-row">
+      <button class="chip active" id="btnAreaTotal" type="button">Total</button>
+      <button class="chip" id="btnAreaBienes" type="button">Bienes</button>
+      <button class="chip" id="btnAreaServicios" type="button">Servicios</button>
+    </div>
     <div id="areaAccordion"><div class="loading-row">Calculando gasto por área…</div></div>
   </div>
 </section>
@@ -815,44 +820,68 @@ section{margin-block:20px;}
     };
   }
 
+  // Gasto por área: misma tabla que "Top 10 proveedores por categoría" (años + total),
+  // con una sola variación: último año vs. año anterior.
+  var areaTab = 'total', lastAreaAgg = null;
   function renderAreaMatrixFromAgg(agg){
-    var years = agg.years;
-    var latestYear = years[years.length-1] || '';
-    function varStat(label, prev, curr){
-      if(!prev) return '<div class="area-stat"><span class="area-stat-label">'+esc(label)+'</span><span class="var-flat">—</span></div>';
-      var pct = (curr-prev)/prev*100;
-      var cls = pct > 0.5 ? 'var-up' : (pct < -0.5 ? 'var-down' : 'var-flat');
-      var arrow = pct > 0.5 ? '▲' : (pct < -0.5 ? '▼' : '—');
-      return '<div class="area-stat"><span class="area-stat-label">'+esc(label)+'</span><span class="'+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</span></div>';
-    }
+    if(agg) lastAreaAgg = agg; else agg = lastAreaAgg;
+    if(!agg) return;
     var container = document.getElementById('areaAccordion');
-    if(!agg.areaRows.length){
+    var years = agg.years;
+    function val(a, y){
+      var c = a.byYearCat[y];
+      if(areaTab === 'bienes') return c ? c.bienes : 0;
+      if(areaTab === 'servicios') return c ? c.servicios : 0;
+      return a.byYear[y] || 0;
+    }
+    var rows = agg.areaRows.map(function(a){
+      var byYear = {}, tot = 0;
+      years.forEach(function(y){ byYear[y] = val(a, y); tot += byYear[y]; });
+      return {nombre:a.nombre, byYear:byYear, total:tot};
+    }).filter(function(r){ return r.total > 0; })
+      .sort(function(a,b){ return b.total - a.total; });
+    if(!rows.length){
       container.innerHTML = '<div class="loading-row">Sin datos para estos filtros.</div>';
       return;
     }
-    container.innerHTML = agg.areaRows.map(function(a, i){
-      var yearStats = years.map(function(y){
-        return '<div class="area-stat"><span class="area-stat-label">'+y+'</span><span class="num">'+(a.byYear[y]?compact(a.byYear[y]):'—')+'</span></div>';
-      }).join('');
-      var varStats = years.slice(1).map(function(y,idx){ return varStat('Var. '+years[idx]+'→'+y, a.byYear[years[idx]], a.byYear[y]); }).join('');
-      return '<div class="area-acc-item">'+
-        '<button class="area-acc-header" type="button" data-idx="'+i+'">'+
-          '<span class="area-acc-name">'+esc(a.nombre)+'</span>'+
-          '<span class="area-acc-total num">'+compact(a.total)+'</span>'+
-          '<span class="area-acc-chevron">▾</span>'+
-        '</button>'+
-        '<div class="area-acc-body" hidden>'+
-          '<div class="area-stat"><span class="area-stat-label">Bienes ('+latestYear+')</span><span class="num">'+compact(a.bienes)+'</span></div>'+
-          '<div class="area-stat"><span class="area-stat-label">Servicios ('+latestYear+')</span><span class="num">'+compact(a.servicios)+'</span></div>'+
-          yearStats + varStats +
-        '</div>'+
-      '</div>';
-    }).join('');
-    container.querySelectorAll('.area-acc-header').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        var body = btn.nextElementSibling;
-        body.hidden = !body.hidden;
-        btn.classList.toggle('open', !body.hidden);
+    var hasVar = years.length > 1;
+    var prevY = years[years.length-2], lastY = years[years.length-1];
+    function varCell(prev, curr){
+      if(!prev) return '<td class="var-flat">—</td>';
+      var pct = (curr-prev)/prev*100;
+      var cls = pct > 0.5 ? 'var-up' : (pct < -0.5 ? 'var-down' : 'var-flat');
+      var arrow = pct > 0.5 ? '▲' : (pct < -0.5 ? '▼' : '—');
+      return '<td class="'+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</td>';
+    }
+    var thead = '<thead><tr><th>Área</th>'+
+      years.map(function(y){ return '<th>'+y+'</th>'; }).join('')+
+      (hasVar ? '<th>Var. vs '+prevY+'</th>' : '')+
+      '<th>Total</th></tr></thead>';
+    var sumYear = {}, sumTotal = 0;
+    years.forEach(function(y){ sumYear[y] = 0; });
+    var tbody = '<tbody>' + rows.map(function(r){
+      years.forEach(function(y){ sumYear[y] += r.byYear[y]; });
+      sumTotal += r.total;
+      return '<tr><td>'+esc(r.nombre)+'</td>'+
+        years.map(function(y){ return '<td class="num">'+(r.byYear[y] ? compact(r.byYear[y]) : '—')+'</td>'; }).join('')+
+        (hasVar ? varCell(r.byYear[prevY], r.byYear[lastY]) : '')+
+        '<td class="num">'+compact(r.total)+'</td></tr>';
+    }).join('') +
+      '<tr class="total-row"><td>Total</td>'+
+        years.map(function(y){ return '<td class="num">'+compact(sumYear[y])+'</td>'; }).join('')+
+        (hasVar ? varCell(sumYear[prevY], sumYear[lastY]) : '')+
+        '<td class="num">'+compact(sumTotal)+'</td></tr>' +
+      '</tbody>';
+    container.innerHTML = '<div class="table-scroll"><table class="matrix-table">'+thead+tbody+'</table></div>';
+  }
+  function wireAreaToggle(){
+    [['btnAreaTotal','total'],['btnAreaBienes','bienes'],['btnAreaServicios','servicios']].forEach(function(p){
+      document.getElementById(p[0]).addEventListener('click', function(){
+        areaTab = p[1];
+        ['btnAreaTotal','btnAreaBienes','btnAreaServicios'].forEach(function(id){
+          document.getElementById(id).classList.toggle('active', id === p[0]);
+        });
+        renderAreaMatrixFromAgg(null);
       });
     });
   }
@@ -1466,6 +1495,7 @@ section{margin-block:20px;}
   }
   wireInsumosToggle();
   wireProveedorCategoriaToggle();
+  wireAreaToggle();
   renderInsumosCategoria('fertilizacion');
 
   // ---------------- Boot (Supabase) ----------------
