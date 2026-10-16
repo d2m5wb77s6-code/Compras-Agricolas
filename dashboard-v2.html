@@ -855,7 +855,7 @@ section{margin-block:20px;}
     }
     var thead = '<thead><tr><th>Área</th>'+
       years.map(function(y){ return '<th>'+y+'</th>'; }).join('')+
-      (hasVar ? '<th>Var. vs '+prevY+'</th>' : '')+
+      (hasVar ? '<th>Var. '+prevY+' vs '+lastY+'</th>' : '')+
       '<th>Total</th></tr></thead>';
     var sumYear = {}, sumTotal = 0;
     years.forEach(function(y){ sumYear[y] = 0; });
