@@ -276,6 +276,17 @@ tr.da-sub[hidden]{display:none;}
 .da-lines td{padding:5px 10px; border-top:1px solid var(--border);}
 .da-lines td.t, .da-lines th.t{text-align:left;}
 .da-more{padding:7px 14px 0; font-size:0.74rem; color:var(--muted);}
+/* Bienes vs. servicios: barras verticales */
+.vsplit{display:grid; grid-template-rows:auto auto; column-gap:12px; row-gap:0; padding-top:4px;}
+.vcol{height:210px; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:1px solid var(--axis); min-width:0;}
+.vval{display:flex; flex-direction:column; align-items:center; margin-bottom:6px; line-height:1.25; text-align:center;}
+.vval b{font-size:0.9rem; font-weight:700; white-space:nowrap;}
+.vval span{font-size:0.74rem; color:var(--muted);}
+.vbar{width:100%; max-width:84px; border-radius:6px 6px 0 0; transition:height .4s ease, filter .15s;}
+.vcol:hover .vbar{filter:brightness(1.1);}
+.vname{padding-top:9px; font-size:0.8rem; color:var(--text-secondary); text-align:center; line-height:1.3; overflow-wrap:break-word;}
+.vname .swatch{display:inline-block; margin-right:6px; vertical-align:-1px;}
+@media (max-width:520px){ .vsplit{column-gap:5px;} .vval b{font-size:0.74rem;} .vval span{font-size:0.68rem;} .vname{font-size:0.64rem; overflow-wrap:break-word; hyphens:none;} .vname .swatch{display:block; margin:0 auto 4px;} .card:has(.vsplit){padding:14px 10px;} }
 /* Herbicidas / Fungicidas / Insecticidas: el nombre va como título encima de su barra, completo y legible */
 .barchart.bar-titled{gap:15px;}
 .bar-titled .barrow{grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"lbl lbl" "track val"; row-gap:5px; column-gap:10px;}
@@ -735,20 +746,31 @@ tr.da-sub[hidden]{display:none;}
   }
   var catColors = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)','var(--s7)','var(--s8)'];
 
+  // Bienes vs. servicios / estado de órdenes: barras VERTICALES con el valor y % encima y el nombre debajo
   function renderSplit(barId, legendId, items, colorFn){
     var total = items.reduce(function(a,b){return a+b.valor;}, 0) || 1;
-    var bar = items.map(function(it,i){
-      var pct = (it.valor/total*100);
+    var max = Math.max.apply(null, items.map(function(it){ return it.valor; }).concat([0])) || 1;
+    var CH = 150; // alto máximo de barra en px
+    var bar = document.getElementById(barId);
+    var legend = document.getElementById(legendId);
+    legend.innerHTML = ''; legend.style.display = 'none';   // los nombres van directamente bajo cada barra
+    if(!items.length){ bar.className = ''; bar.innerHTML = '<div class="loading-row">Sin datos para estos filtros.</div>'; return; }
+    bar.className = 'vsplit';
+    bar.style.gridTemplateColumns = 'repeat('+items.length+', minmax(0,1fr))';
+    var cols = items.map(function(it,i){
+      var pct = it.valor/total*100;
       var c = colorFn ? colorFn(it.nombre, i) : catColors[i % catColors.length];
-      return '<div class="split-seg" style="width:'+pct.toFixed(2)+'%; background:'+c+'" title="'+esc(it.nombre)+'"></div>';
-    }).join('');
-    document.getElementById(barId).innerHTML = bar;
-    var legend = items.map(function(it,i){
-      var pct = (it.valor/total*100);
+      var h = it.valor > 0 ? Math.max(Math.round(it.valor/max*CH), 3) : 0;
+      return '<div class="vcol" title="'+esc(it.nombre)+': '+compact(it.valor)+' ('+pct.toFixed(1)+'%)">'+
+        '<div class="vval"><b class="num">'+compact(it.valor)+'</b><span class="num">'+pct.toFixed(1)+'%</span></div>'+
+        '<div class="vbar" style="height:'+h+'px; background:'+c+'"></div>'+
+      '</div>';
+    });
+    var names = items.map(function(it,i){
       var c = colorFn ? colorFn(it.nombre, i) : catColors[i % catColors.length];
-      return '<div class="legend-item"><span class="swatch" style="background:'+c+'"></span><span class="lname">'+esc(it.nombre)+'</span><span class="lpct">'+pct.toFixed(1)+'%</span><span class="lval num">'+compact(it.valor)+'</span></div>';
-    }).join('');
-    document.getElementById(legendId).innerHTML = legend;
+      return '<div class="vname"><span class="swatch" style="background:'+c+'"></span>'+esc(it.nombre)+'</div>';
+    });
+    bar.innerHTML = cols.join('') + names.join('');
   }
 
   function getGloballyFilteredDetail(){
