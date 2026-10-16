@@ -974,15 +974,24 @@ section{margin-block:20px;}
 
     var totalCantidad = rows.reduce(function(s,r){ return s+r.co; }, 0);
 
+    // Unidad de medida real del insumo (columna de la base de datos); si hay varias, la más frecuente
+    var unitCounts = {};
+    rows.forEach(function(r){ var u = (r.um==null ? '' : String(r.um)).trim(); if(u) unitCounts[u] = (unitCounts[u]||0)+1; });
+    var units = Object.keys(unitCounts).sort(function(a,b){ return unitCounts[b]-unitCounts[a]; });
+    var unidad = units[0] || 'unid.';
+    var unidadNota = '';
+    if(units.length > 1) unidadNota = ' · <span style="color:var(--warning)">⚠ unidades mezcladas ('+esc(units.join(', '))+'): se suman tal cual</span>';
+    else if(!units.length) unidadNota = ' · <span style="color:var(--muted)">unidad de medida no disponible en la base</span>';
+
     body.innerHTML =
-      '<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:10px;">'+esc(insumoSelected)+' · <b class="num">'+totalCantidad.toLocaleString('es-CO',{maximumFractionDigits:1})+'</b> unidades compradas en total · '+topProvs.length+' proveedor(es)</div>'+
+      '<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:10px;">'+esc(insumoSelected)+' · <b class="num">'+totalCantidad.toLocaleString('es-CO',{maximumFractionDigits:1})+'</b> '+esc(unidad)+' comprados en total · '+topProvs.length+' proveedor(es)'+unidadNota+'</div>'+
       '<div class="monthly-wrap"><svg class="monthly-svg" id="insumoTendenciaSvg" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg><div class="m-tooltip" id="insumoTendenciaTooltip"></div></div>'+
       '<div class="insumo-trend-legend" id="insumoTendenciaLegend"></div>';
 
-    drawInsumoTendenciaChart(months, topProvs, series);
+    drawInsumoTendenciaChart(months, topProvs, series, unidad);
   }
 
-  function drawInsumoTendenciaChart(months, provs, series){
+  function drawInsumoTendenciaChart(months, provs, series, unidad){
     var svg = document.getElementById('insumoTendenciaSvg');
     var W=1000,H=220, padL=4, padR=10, padB=22, padT=16;
     var allVals = [];
@@ -1032,7 +1041,7 @@ section{margin-block:20px;}
         tooltip.style.left = (ev.clientX-rect.left)+'px';
         tooltip.style.top = (ev.clientY-rect.top)+'px';
         var label = MES_ABBR[parseInt(mk.slice(5,7),10)-1]+' '+mk.slice(0,4);
-        tooltip.innerHTML = '<strong>'+esc(prov)+'</strong><br>'+label+': '+v.toLocaleString('es-CO',{maximumFractionDigits:1})+' unid.';
+        tooltip.innerHTML = '<strong>'+esc(prov)+'</strong><br>'+label+': '+v.toLocaleString('es-CO',{maximumFractionDigits:1})+' '+esc(unidad);
         tooltip.classList.add('show');
       });
     });
@@ -1493,7 +1502,24 @@ section{margin-block:20px;}
 
   var SUPA_COLS = 'fecha,nro_orden,proveedor,item,referencia,grupo_materiales,tipos_material,area,centro_costo,estado,valor_neto,cantidad_pendiente,cantidad_ordenada,empresa';
 
-  fetchAllFromSupabase('compras_detalle', SUPA_COLS).then(function(rows){
+  // Detecta cómo se llama la columna de unidad de medida en la tabla (unidad, unidad_medida, um, u_m, …).
+  // Pide 1 fila con todas las columnas y busca el nombre; si no existe, el dashboard sigue funcionando.
+  var UNIT_COL = null;
+  function detectUnitColumn(){
+    return fetch(SUPABASE_URL + '/rest/v1/compras_detalle?select=*&limit=1', { headers: { 'apikey': SUPABASE_ANON_KEY } })
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        var keys = (Array.isArray(rows) && rows[0]) ? Object.keys(rows[0]) : [];
+        var exact = /^(unidad|unidad_medida|unidad_de_medida|u_?m|um|und|uom|unidad_compra)$/i;
+        UNIT_COL = keys.filter(function(k){ return exact.test(k); })[0]
+                || keys.filter(function(k){ return /unidad|medida/i.test(k); })[0] || null;
+      })
+      .catch(function(){ UNIT_COL = null; });
+  }
+
+  detectUnitColumn().then(function(){
+    return fetchAllFromSupabase('compras_detalle', SUPA_COLS + (UNIT_COL ? ',' + UNIT_COL : ''));
+  }).then(function(rows){
     // Reempaca los nombres de columna de Supabase (snake_case) al formato compacto que usa
     // el resto de este script (f,no,pr,it,ref,gm,tm,ar,cc,es,vn,cp,co,em) — así no hubo que
     // reescribir toda la lógica de cálculo, solo esta capa de carga de datos.
@@ -1503,6 +1529,7 @@ section{margin-block:20px;}
         gm: r.grupo_materiales, tm: r.tipos_material, ar: r.area, cc: r.centro_costo,
         es: r.estado, vn: Number(r.valor_neto), cp: Number(r.cantidad_pendiente),
         co: r.cantidad_ordenada==null ? 0 : Number(r.cantidad_ordenada),
+        um: UNIT_COL ? r[UNIT_COL] : null,
         em: r.empresa
       };
     });
