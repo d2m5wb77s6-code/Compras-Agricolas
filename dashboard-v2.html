@@ -284,6 +284,12 @@ tr.da-sub[hidden]{display:none;}
 .vval span{font-size:0.74rem; color:var(--muted);}
 .vbar{width:100%; max-width:84px; border-radius:6px 6px 0 0; transition:height .4s ease, filter .15s;}
 .vcol:hover .vbar{filter:brightness(1.1);}
+.vcol.clickable{cursor:pointer; border-radius:8px 8px 0 0; transition:background .15s;}
+.vcol.clickable:hover, .vcol.clickable:focus-visible{background:color-mix(in srgb, var(--grid) 55%, transparent); outline:none;}
+.vcol.sel{background:color-mix(in srgb, var(--accent) 12%, transparent);}
+.vcol.sel .vval b{color:var(--accent);}
+.estado-table th:nth-child(-n+4), .estado-table td:nth-child(-n+4){text-align:left;}
+.estado-table td:nth-child(5), .estado-table td:nth-child(6){text-align:right;}
 .vname{padding-top:9px; font-size:0.8rem; color:var(--text-secondary); text-align:center; line-height:1.3; overflow-wrap:break-word;}
 .vname .swatch{display:inline-block; margin-right:6px; vertical-align:-1px;}
 @media (max-width:520px){ .vsplit{column-gap:5px;} .vval b{font-size:0.74rem;} .vval span{font-size:0.68rem;} .vname{font-size:0.64rem; overflow-wrap:break-word; hyphens:none;} .vname .swatch{display:block; margin:0 auto 4px;} .card:has(.vsplit){padding:14px 10px;} }
@@ -394,8 +400,18 @@ tr.da-sub[hidden]{display:none;}
       <div class="legend" id="estadoLegend"></div>
     </div>
   </div>
+  <div class="card" id="estadoDetalle" hidden style="margin-top:14px">
+    <div class="section-head">
+      <h2 id="estadoDetalleTitle" style="font-size:0.95rem"></h2>
+      <button class="chip" id="estadoDetalleClose" type="button">Cerrar ✕</button>
+    </div>
+    <div class="filters">
+      <input type="text" id="estadoDetalleBuscar" placeholder="Buscar por N° de orden, proveedor o área…" autocomplete="off">
+    </div>
+    <div id="estadoDetalleBody"></div>
+  </div>
   <div class="section-head" style="margin-top:4px">
-    <span class="hint" style="font-size:0.72rem">izquierda: tipo de gasto · derecha: estado de las órdenes</span>
+    <span class="hint" style="font-size:0.72rem">izquierda: tipo de gasto · derecha: estado de las órdenes (clic en un estado para ver sus órdenes de compra)</span>
   </div>
 </section>
 
@@ -747,7 +763,7 @@ tr.da-sub[hidden]{display:none;}
   var catColors = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)','var(--s7)','var(--s8)'];
 
   // Bienes vs. servicios / estado de órdenes: barras VERTICALES con el valor y % encima y el nombre debajo
-  function renderSplit(barId, legendId, items, colorFn){
+  function renderSplit(barId, legendId, items, colorFn, onClick){
     var total = items.reduce(function(a,b){return a+b.valor;}, 0) || 1;
     var max = Math.max.apply(null, items.map(function(it){ return it.valor; }).concat([0])) || 1;
     var CH = 150; // alto máximo de barra en px
@@ -761,7 +777,7 @@ tr.da-sub[hidden]{display:none;}
       var pct = it.valor/total*100;
       var c = colorFn ? colorFn(it.nombre, i) : catColors[i % catColors.length];
       var h = it.valor > 0 ? Math.max(Math.round(it.valor/max*CH), 3) : 0;
-      return '<div class="vcol" title="'+esc(it.nombre)+': '+compact(it.valor)+' ('+pct.toFixed(1)+'%)">'+
+      return '<div class="vcol'+(onClick?' clickable':'')+'" data-name="'+esc(it.nombre)+'"'+(onClick?' role="button" tabindex="0"':'')+' title="'+esc(it.nombre)+': '+compact(it.valor)+' ('+pct.toFixed(1)+'%)'+(onClick?' · clic para ver las órdenes':'')+'">'+
         '<div class="vval"><b class="num">'+compact(it.valor)+'</b><span class="num">'+pct.toFixed(1)+'%</span></div>'+
         '<div class="vbar" style="height:'+h+'px; background:'+c+'"></div>'+
       '</div>';
@@ -771,6 +787,95 @@ tr.da-sub[hidden]{display:none;}
       return '<div class="vname"><span class="swatch" style="background:'+c+'"></span>'+esc(it.nombre)+'</div>';
     });
     bar.innerHTML = cols.join('') + names.join('');
+    if(onClick){
+      bar.querySelectorAll('.vcol').forEach(function(col){
+        function go(){ onClick(col.getAttribute('data-name')); }
+        col.addEventListener('click', go);
+        col.addEventListener('keydown', function(ev){ if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go(); } });
+      });
+    }
+  }
+
+  // ---------------- Detalle de órdenes por estado (clic en una barra de "estado de las órdenes") ----------------
+  var estadoSel = null, estadoLimit = 50, estadoQuery = '';
+  var ESTADO_PAGE = 50;
+  function markEstadoSelected(){
+    document.querySelectorAll('#estadoSplitBar .vcol').forEach(function(c){
+      c.classList.toggle('sel', c.getAttribute('data-name') === estadoSel);
+    });
+  }
+  function selectEstado(name){
+    estadoSel = (estadoSel === name) ? null : name;
+    estadoLimit = ESTADO_PAGE; estadoQuery = '';
+    document.getElementById('estadoDetalleBuscar').value = '';
+    renderEstadoDetalle();
+    if(estadoSel) document.getElementById('estadoDetalle').scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  function renderEstadoDetalle(){
+    var panel = document.getElementById('estadoDetalle');
+    if(!estadoSel || !currentAgg || !currentAgg.byEstado.some(function(e){ return e.nombre === estadoSel; })){
+      estadoSel = null; panel.hidden = true; markEstadoSelected(); return;
+    }
+    markEstadoSelected();
+    var rows = getChartsFilteredDetail().filter(function(r){ return r.es === estadoSel; });
+    var omap = {}, order = [];
+    rows.forEach(function(r){
+      var k = r.no || '(sin N°)';
+      var o = omap[k];
+      if(!o){ o = omap[k] = {no:k, f:r.f||'', provs:{}, areas:{}, valor:0, pend:0, lines:[]}; order.push(o); }
+      if(r.f && (!o.f || r.f < o.f)) o.f = r.f;
+      if(r.pr) o.provs[r.pr] = true;
+      if(r.ar) o.areas[r.ar] = true;
+      o.valor += r.vn;
+      o.lines.push(r);
+    });
+    order.forEach(function(o){
+      var ps = Object.keys(o.provs), as = Object.keys(o.areas);
+      o.prov = ps.length === 0 ? '—' : (ps.length === 1 ? ps[0] : ps[0]+' (+'+(ps.length-1)+')');
+      o.area = as.length === 0 ? '—' : (as.length === 1 ? as[0] : as[0]+' (+'+(as.length-1)+')');
+    });
+    var totalValor = order.reduce(function(s,o){ return s + o.valor; }, 0);
+    var q = estadoQuery.trim().toLowerCase();
+    var list = q ? order.filter(function(o){ return (o.no+' '+o.prov+' '+o.area).toLowerCase().indexOf(q) !== -1; }) : order;
+    list = list.slice().sort(function(a,b){ return b.valor - a.valor || (a.f < b.f ? 1 : -1); });
+
+    document.getElementById('estadoDetalleTitle').innerHTML = 'Órdenes en estado «'+esc(estadoSel)+'» · '+
+      order.length.toLocaleString('es-CO')+(order.length === 1 ? ' orden' : ' órdenes')+' · '+compact(totalValor)+
+      (q ? ' <span style="font-weight:500;color:var(--muted)">(mostrando '+list.length.toLocaleString('es-CO')+' que coinciden)</span>' : '');
+
+    var body = document.getElementById('estadoDetalleBody');
+    if(!list.length){ body.innerHTML = '<div class="loading-row">Ninguna orden coincide con la búsqueda.</div>'; panel.hidden = false; return; }
+    var shown = list.slice(0, estadoLimit);
+    var trs = shown.map(function(o){
+      var lines = o.lines.slice().sort(function(a,b){ return b.vn - a.vn; });
+      var linesHtml = lines.map(function(r){
+        var cant = r.co ? r.co.toLocaleString('es-CO',{maximumFractionDigits:1}) + (r.um ? ' '+esc(r.um) : '') : '—';
+        var pend = r.cp ? r.cp.toLocaleString('es-CO',{maximumFractionDigits:1}) + (r.um ? ' '+esc(r.um) : '') : '—';
+        return '<tr><td class="t">'+esc(r.it)+'</td><td class="t">'+esc(r.ref)+'</td><td class="num">'+cant+'</td><td class="num">'+pend+'</td><td class="num">'+compact(r.vn)+'</td></tr>';
+      }).join('');
+      return '<tr class="da-row"><td>'+esc(o.f)+'</td><td>'+esc(o.no)+'</td><td>'+esc(o.prov)+'</td><td>'+esc(o.area)+'</td><td class="num">'+o.lines.length+'</td><td class="num">'+compact(o.valor)+'</td></tr>'+
+        '<tr class="da-sub" hidden><td colspan="6"><div class="table-scroll" style="border:none;border-radius:0"><table class="matrix-table da-lines"><thead><tr><th class="t">Ítem</th><th class="t">Referencia</th><th>Cantidad</th><th>Pendiente</th><th>Valor</th></tr></thead><tbody>'+linesHtml+'</tbody></table></div></td></tr>';
+    }).join('');
+    var more = list.length > shown.length
+      ? '<div style="text-align:center; margin-top:10px"><button class="chip" id="estadoDetalleMas" type="button">Mostrar '+Math.min(ESTADO_PAGE, list.length - shown.length)+' más (quedan '+(list.length - shown.length).toLocaleString('es-CO')+')</button></div>'
+      : '';
+    body.innerHTML = '<div class="table-scroll" style="max-height:520px; overflow-y:auto"><table class="matrix-table estado-table"><thead><tr><th>Fecha</th><th>N° orden</th><th>Proveedor</th><th>Área</th><th>Líneas</th><th>Valor ▼</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+
+      '<div class="da-more" style="padding-left:2px">Ordenado por valor de mayor a menor · clic en una orden para ver sus líneas · '+list.length.toLocaleString('es-CO')+(list.length === 1 ? ' orden' : ' órdenes')+'</div>'+more;
+    body.querySelectorAll('tr.da-row').forEach(function(tr){
+      tr.addEventListener('click', function(){
+        var sub = tr.nextElementSibling; sub.hidden = !sub.hidden; tr.classList.toggle('open', !sub.hidden);
+      });
+    });
+    var btn = document.getElementById('estadoDetalleMas');
+    if(btn) btn.addEventListener('click', function(){ estadoLimit += ESTADO_PAGE; renderEstadoDetalle(); });
+    panel.hidden = false;
+  }
+  function wireEstadoDetalle(){
+    document.getElementById('estadoDetalleClose').addEventListener('click', function(){ estadoSel = null; renderEstadoDetalle(); });
+    document.getElementById('estadoDetalleBuscar').addEventListener('input', function(){
+      estadoQuery = this.value; estadoLimit = ESTADO_PAGE; renderEstadoDetalle();
+      var inp = document.getElementById('estadoDetalleBuscar'); inp.focus();
+    });
   }
 
   function getGloballyFilteredDetail(){
@@ -1342,7 +1447,8 @@ tr.da-sub[hidden]{display:none;}
     redrawBienesChart();
     redrawServiciosChart();
     renderSplit('tipoSplitBar','tipoLegend', currentAgg.byTipo, function(n){ return n.indexOf('BIENES')>=0 ? 'var(--s1)' : 'var(--s2)'; });
-    renderSplit('estadoSplitBar','estadoLegend', currentAgg.byEstado, colorForStatus);
+    renderSplit('estadoSplitBar','estadoLegend', currentAgg.byEstado, colorForStatus, selectEstado);
+    renderEstadoDetalle();
     renderProveedorCategoria();
     if(currentAgg.icamTop10.length){ renderExpandableBarChart('icamChart', currentAgg.icamTop10, 'proveedor'); }
     else { document.getElementById('icamChart').innerHTML = '<div style="font-size:0.8rem; color:var(--muted)">Sin datos para ICAM - Insumos campo.</div>'; }
@@ -1744,6 +1850,7 @@ tr.da-sub[hidden]{display:none;}
   wireProveedorCategoriaToggle();
   wireAreaToggle();
   wireDetalleArea();
+  wireEstadoDetalle();
   renderInsumosCategoria('fertilizacion');
 
   // ---------------- Boot (Supabase) ----------------
