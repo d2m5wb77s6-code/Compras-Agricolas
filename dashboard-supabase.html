@@ -1826,10 +1826,18 @@ tr.da-sub[hidden]{display:none;}
     var ultimo = list[0];
     var anioUltimo = parseInt(ultimo.f.slice(0,4),10);
     var anterior = list.find(function(x){ return parseInt(x.f.slice(0,4),10) === anioUltimo-1; });
+    var precioUnitUltimo = ultimo.co ? (ultimo.vn/ultimo.co) : null;
+    var compraAnterior = list[1] || null; // compra inmediatamente anterior, sin importar el año
+    var precioUnitAnterior = (compraAnterior && compraAnterior.co) ? (compraAnterior.vn/compraAnterior.co) : null;
+    var variacionPrecioUnitPct = (precioUnitUltimo!=null && precioUnitAnterior!=null && precioUnitAnterior!==0)
+      ? ((precioUnitUltimo-precioUnitAnterior)/precioUnitAnterior*100) : null;
     return {
       ultimoValor: ultimo.vn, ultimaFecha: ultimo.f, ultimoProveedor: ultimo.pr,
       ultimaCantidad: ultimo.co, ultimaUnidad: ultimo.um,
-      anteriorValor: anterior ? anterior.vn : null, anteriorFecha: anterior ? anterior.f : null
+      anteriorValor: anterior ? anterior.vn : null, anteriorFecha: anterior ? anterior.f : null,
+      precioUnitUltimo: precioUnitUltimo, precioUnitAnterior: precioUnitAnterior,
+      fechaCompraAnterior: compraAnterior ? compraAnterior.f : null,
+      variacionPrecioUnitPct: variacionPrecioUnitPct
     };
   }
   function enrichControlQuimicoConCompras(){
@@ -1847,6 +1855,10 @@ tr.da-sub[hidden]{display:none;}
           it.anteriorValor = m.anteriorValor;
           it.anteriorFecha = m.anteriorFecha;
           it.variacionPct = (m.anteriorValor!=null && m.anteriorValor!==0) ? ((m.ultimoValor-m.anteriorValor)/m.anteriorValor*100) : null;
+          it.precioUnitUltimo = m.precioUnitUltimo;
+          it.precioUnitAnterior = m.precioUnitAnterior;
+          it.fechaCompraAnterior = m.fechaCompraAnterior;
+          it.variacionPrecioUnitPct = m.variacionPrecioUnitPct;
           it.matched = true;
         } else {
           it.matched = false;
@@ -1872,12 +1884,23 @@ tr.da-sub[hidden]{display:none;}
         sub = 'Catálogo · sin compra registrada';
       }
       var cantidadTxt = (it.cantidad!=null) ? it.cantidad.toLocaleString('es-CO',{maximumFractionDigits:1})+' '+esc(it.unidad||'') : '—';
+      var precioUnitTxt = (it.cantidad) ? compact(it.valor/it.cantidad)+'/'+esc(it.unidad||'unid.') : '';
+      var variacionPrecioTxt = '';
+      if(it.variacionPrecioUnitPct!=null){
+        var vcls = it.variacionPrecioUnitPct>0.5?'var-up':(it.variacionPrecioUnitPct<-0.5?'var-down':'var-flat');
+        var varrow = it.variacionPrecioUnitPct>0.5?'▲':(it.variacionPrecioUnitPct<-0.5?'▼':'—');
+        var difPesos = it.precioUnitUltimo - it.precioUnitAnterior;
+        var difTxt = (difPesos<0?'-':'+')+compact(Math.abs(difPesos))+'/'+esc(it.unidad||'unid.');
+        variacionPrecioTxt = '<span class="'+vcls+'">'+varrow+' '+Math.abs(it.variacionPrecioUnitPct).toFixed(0)+'% ('+difTxt+')</span> vs '+esc(it.fechaCompraAnterior);
+      }
       var detail = it.matched
         ? '<div class="im-detail" id="'+containerId+'-detail-'+i+'">'+
             '<div class="im-detail-row"><span>Última compra</span><b class="num">'+compact(it.valor)+'</b></div>'+
             '<div class="im-detail-row"><span>Fecha</span><b>'+esc(it.fecha)+'</b></div>'+
             '<div class="im-detail-row"><span>Proveedor</span><b>'+esc(it.proveedor||'—')+'</b></div>'+
             '<div class="im-detail-row"><span>Cantidad comprada</span><b class="num">'+cantidadTxt+'</b></div>'+
+            (precioUnitTxt ? '<div class="im-detail-row"><span>Precio unitario</span><b class="num">'+precioUnitTxt+'</b></div>' : '')+
+            (variacionPrecioTxt ? '<div class="im-detail-row"><span>Variación precio</span><b class="num">'+variacionPrecioTxt+'</b></div>' : '')+
           '</div>'
         : '';
       return '<div class="im-card" data-idx="'+i+'">'+
