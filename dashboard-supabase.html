@@ -455,13 +455,21 @@ tr.da-sub[hidden]{display:none;}
 
 <section>
   <div class="section-head">
-    <h2 class="it-title"><span class="it-badge"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="21" r="1.4"/><circle cx="19" cy="21" r="1.4"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></span>Tendencia de compra por insumo</h2>
+    <h2 class="it-title"><span class="it-badge"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="21" r="1.4"/><circle cx="19" cy="21" r="1.4"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></span>Tendencia de compra por insumo y Proveedor</h2>
     <span class="hint">cantidad comprada por mes · una línea por proveedor</span>
   </div>
   <div class="card">
-    <div class="insumo-select-wrap">
+    <div class="toggle-row" style="margin-bottom:10px;">
+      <button class="chip active" id="btnTendVerInsumo" type="button">Por insumo</button>
+      <button class="chip" id="btnTendVerProveedor" type="button">Por proveedor</button>
+    </div>
+    <div class="insumo-select-wrap" id="insumoTendenciaWrap">
       <input type="text" id="insumoTendenciaInput" class="insumo-select-input" placeholder="Escribe para buscar un insumo (bienes)…" autocomplete="off">
       <div class="insumo-select-panel" id="insumoTendenciaPanel" hidden></div>
+    </div>
+    <div class="insumo-select-wrap" id="proveedorTendenciaWrap" hidden>
+      <input type="text" id="proveedorTendenciaInput" class="insumo-select-input" placeholder="Escribe para buscar proveedor…" autocomplete="off">
+      <div class="insumo-select-panel" id="proveedorTendenciaPanel" hidden></div>
     </div>
     <div id="insumoTendenciaBody">
       <div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Elige un insumo arriba para ver su tendencia de compra.</div>
@@ -1324,6 +1332,8 @@ tr.da-sub[hidden]{display:none;}
   // ---------------- Tendencia de compra por insumo (bienes): item seleccionable, línea por proveedor ----------------
   var insumoItemList = [];
   var insumoSelected = null;
+  var proveedorSelected = null;
+  var tendVerPor = 'insumo';
 
   function buildInsumoItemList(){
     var set = {};
@@ -1333,14 +1343,22 @@ tr.da-sub[hidden]{display:none;}
     return Object.keys(set).sort(function(a,b){ return a.localeCompare(b,'es'); });
   }
 
-  function wireInsumoTendenciaSelect(){
-    insumoItemList = buildInsumoItemList();
-    var input = document.getElementById('insumoTendenciaInput');
-    var panel = document.getElementById('insumoTendenciaPanel');
+  function buildProveedorBienesList(){
+    var set = {};
+    DETAIL.forEach(function(r){
+      if(r.gm && r.gm.indexOf('GRBI') >= 0 && r.pr) set[r.pr] = true;
+    });
+    return Object.keys(set).sort(function(a,b){ return a.localeCompare(b,'es'); });
+  }
+
+  function wireSearchSelect(inputId, panelId, getList, onPick){
+    var input = document.getElementById(inputId);
+    var panel = document.getElementById(panelId);
 
     function showMatches(q){
+      var list = getList();
       var query = q.trim().toLowerCase();
-      var matches = query ? insumoItemList.filter(function(it){ return it.toLowerCase().indexOf(query) >= 0; }) : insumoItemList;
+      var matches = query ? list.filter(function(it){ return it.toLowerCase().indexOf(query) >= 0; }) : list;
       matches = matches.slice(0, 50);
       panel.innerHTML = matches.length
         ? matches.map(function(it){ return '<div class="insumo-select-opt">'+esc(it)+'</div>'; }).join('')
@@ -1353,27 +1371,59 @@ tr.da-sub[hidden]{display:none;}
     panel.addEventListener('click', function(ev){
       var opt = ev.target.closest('.insumo-select-opt');
       if(!opt) return;
-      insumoSelected = opt.textContent;
-      input.value = insumoSelected;
+      input.value = opt.textContent;
       panel.hidden = true;
-      renderInsumoTendencia();
+      onPick(opt.textContent);
     });
     document.addEventListener('click', function(ev){
-      if(!ev.target.closest('.insumo-select-wrap')) panel.hidden = true;
+      if(!ev.target.closest('#'+inputId.replace('Input','Wrap'))) panel.hidden = true;
+    });
+  }
+
+  function wireInsumoTendenciaSelect(){
+    insumoItemList = buildInsumoItemList();
+    wireSearchSelect('insumoTendenciaInput', 'insumoTendenciaPanel', function(){ return insumoItemList; }, function(val){
+      insumoSelected = val;
+      renderInsumoTendencia();
+    });
+    wireSearchSelect('proveedorTendenciaInput', 'proveedorTendenciaPanel', buildProveedorBienesList, function(val){
+      proveedorSelected = val;
+      renderInsumoTendencia();
+    });
+    document.getElementById('btnTendVerInsumo').addEventListener('click', function(){
+      if(tendVerPor==='insumo') return;
+      tendVerPor = 'insumo';
+      document.getElementById('btnTendVerInsumo').classList.add('active');
+      document.getElementById('btnTendVerProveedor').classList.remove('active');
+      document.getElementById('insumoTendenciaWrap').hidden = false;
+      document.getElementById('proveedorTendenciaWrap').hidden = true;
+      renderInsumoTendencia();
+    });
+    document.getElementById('btnTendVerProveedor').addEventListener('click', function(){
+      if(tendVerPor==='proveedor') return;
+      tendVerPor = 'proveedor';
+      document.getElementById('btnTendVerProveedor').classList.add('active');
+      document.getElementById('btnTendVerInsumo').classList.remove('active');
+      document.getElementById('proveedorTendenciaWrap').hidden = false;
+      document.getElementById('insumoTendenciaWrap').hidden = true;
+      renderInsumoTendencia();
     });
   }
 
   function renderInsumoTendencia(){
     var body = document.getElementById('insumoTendenciaBody');
-    if(!insumoSelected){
-      body.innerHTML = '<div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Elige un insumo arriba para ver su tendencia de compra.</div>';
+    var porInsumo = tendVerPor === 'insumo';
+    var seleccion = porInsumo ? insumoSelected : proveedorSelected;
+    if(!seleccion){
+      body.innerHTML = '<div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Elige '+(porInsumo?'un insumo':'un proveedor')+' arriba para ver su tendencia de compra.</div>';
       return;
     }
     var rows = DETAIL.filter(function(r){
-      return r.it === insumoSelected && r.es !== 'Anulado' && (!GFILTER.empresa || r.em === GFILTER.empresa);
+      var okSel = porInsumo ? (r.it === seleccion) : (r.pr === seleccion);
+      return okSel && r.es !== 'Anulado' && (!GFILTER.empresa || r.em === GFILTER.empresa);
     });
     if(!rows.length){
-      body.innerHTML = '<div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Sin compras registradas para este insumo con el filtro de empresa actual.</div>';
+      body.innerHTML = '<div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Sin compras registradas para '+(porInsumo?'este insumo':'este proveedor')+' con el filtro de empresa actual.</div>';
       return;
     }
 
@@ -1385,13 +1435,13 @@ tr.da-sub[hidden]{display:none;}
       return okAnio && okMes;
     });
 
-    var provTotals = {};
-    rowsVista.forEach(function(r){ provTotals[r.pr] = (provTotals[r.pr]||0) + r.co; });
-    var topProvs = Object.keys(provTotals).sort(function(a,b){ return provTotals[b]-provTotals[a]; });
+    var otroTotals = {};
+    rowsVista.forEach(function(r){ var k = porInsumo ? r.pr : r.it; otroTotals[k] = (otroTotals[k]||0) + r.co; });
+    var otrosCount = Object.keys(otroTotals).length;
 
     var totalCantidad = rowsVista.reduce(function(s,r){ return s+r.co; }, 0);
 
-    // Unidad de medida real del insumo (columna de la base de datos); si hay varias, la más frecuente
+    // Unidad de medida real; si hay varias, la más frecuente
     var unitCounts = {};
     rowsVista.forEach(function(r){ var u = (r.um==null ? '' : String(r.um)).trim(); if(u) unitCounts[u] = (unitCounts[u]||0)+1; });
     var units = Object.keys(unitCounts).sort(function(a,b){ return unitCounts[b]-unitCounts[a]; });
@@ -1399,30 +1449,33 @@ tr.da-sub[hidden]{display:none;}
     var unidadNota = '';
     if(units.length > 1) unidadNota = ' · <span style="color:var(--warning)">⚠ unidades mezcladas ('+esc(units.join(', '))+'): se suman tal cual</span>';
     else if(!units.length) unidadNota = UNIT_COL
-      ? ' · <span style="color:var(--muted)">sin U.M. registrada para este insumo</span>'
-      : ' · <span style="color:var(--muted)">sin U.M. para este insumo</span>';
+      ? ' · <span style="color:var(--muted)">sin U.M. registrada</span>'
+      : ' · <span style="color:var(--muted)">sin U.M.</span>';
 
     if(!rowsVista.length){
-      body.innerHTML = '<div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Sin compras registradas para este insumo con los filtros actuales (año/mes/empresa).</div>';
+      body.innerHTML = '<div style="font-size:0.84rem; color:var(--muted); padding:8px 2px;">Sin compras registradas con los filtros actuales (año/mes/empresa).</div>';
       return;
     }
 
+    var otrosLabel = porInsumo ? (otrosCount+' proveedor(es)') : (otrosCount+' insumo(s)');
     body.innerHTML =
-      '<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:10px;">'+esc(insumoSelected)+' · <b class="num">'+totalCantidad.toLocaleString('es-CO',{maximumFractionDigits:1})+'</b> '+esc(unidad)+' comprados en total · '+topProvs.length+' proveedor(es)'+unidadNota+'</div>'+
+      '<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:10px;">'+esc(seleccion)+' · <b class="num">'+totalCantidad.toLocaleString('es-CO',{maximumFractionDigits:1})+'</b> '+esc(unidad)+' comprados en total · '+otrosLabel+unidadNota+'</div>'+
       '<div class="table-scroll"><table class="matrix-table" id="insumoAnioTable"></table></div>';
 
-    renderInsumoFilteredTable(rowsVista, unidad);
+    renderInsumoFilteredTable(rowsVista, unidad, porInsumo);
   }
 
-  function renderInsumoFilteredTable(rowsVista, unidad){
+  function renderInsumoFilteredTable(rowsVista, unidad, porInsumo){
+    var colLabel = porInsumo ? 'Proveedor' : 'Insumo';
     var sorted = rowsVista.slice().sort(function(a,b){ return a.f < b.f ? 1 : (a.f > b.f ? -1 : 0); });
     var trs = sorted.map(function(r){
       var precioUnit = r.co ? (r.vn/r.co) : 0;
       var mes = r.f ? (MES_ABBR[parseInt(r.f.slice(5,7),10)-1]+' '+r.f.slice(0,4)) : '—';
+      var colVal = porInsumo ? r.pr : r.it;
       return '<tr>'+
         '<td class="t">'+esc(r.f||'—')+'</td>'+
         '<td class="t">'+esc(mes)+'</td>'+
-        '<td class="t">'+esc(r.pr)+'</td>'+
+        '<td class="t">'+esc(colVal)+'</td>'+
         '<td class="num">'+r.co.toLocaleString('es-CO',{maximumFractionDigits:1})+' '+esc(r.um||unidad)+'</td>'+
         '<td class="num">'+compact(precioUnit)+'/'+esc(r.um||unidad)+'</td>'+
         '<td class="num">'+compact(r.vn)+'</td>'+
@@ -1448,7 +1501,7 @@ tr.da-sub[hidden]{display:none;}
       '<td class="num">'+valorTotalTxt+'</td></tr></tfoot>';
 
     var tbl = document.getElementById('insumoAnioTable');
-    tbl.innerHTML = '<thead><tr><th class="t">Fecha</th><th class="t">Mes</th><th class="t">Proveedor</th><th>Cantidad</th><th>Precio unitario</th><th>Valor total</th></tr></thead><tbody>'+trs+'</tbody>'+tfoot;
+    tbl.innerHTML = '<thead><tr><th class="t">Fecha</th><th class="t">Mes</th><th class="t">'+colLabel+'</th><th>Cantidad</th><th>Precio unitario</th><th>Valor total</th></tr></thead><tbody>'+trs+'</tbody>'+tfoot;
   }
 
 
